@@ -9,3 +9,19 @@ export interface PdvApiError {
   /** Código/identificador devolvido pela API, quando existir. */
   code?: string | undefined;
 }
+
+/**
+ * Envelope de listagem do backend.
+ * Confirmado no contrato de GET /api/v1/pdv/clientes: { data: [...], meta: {...} }.
+ * O conteúdo exato de `meta` ainda não foi especificado — por isso permanece
+ * aberto, sem campos inventados.
+ */
+export interface PdvListaEnvelope<T> {
+  data: T[];
+  meta?: Record<string, unknown> | undefined;
+}
+
+/** Parâmetros de busca aceitos pelas listagens. Nome do parâmetro a confirmar no backend. */
+export interface PdvBuscaParams {
+  busca?: string | undefined;
+}

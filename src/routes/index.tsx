@@ -14,12 +14,12 @@ import { usePdvAuth } from "@/features/auth/PdvAuthProvider";
 import { useCarrinho } from "@/features/carrinho/useCarrinho";
 import { useAtalhos } from "@/features/atalhos/useAtalhos";
 import { parseValor } from "@/lib/format";
-import { MOCK_PRODUTOS } from "@/data/mock.pdv";
+import { pdvDataSource } from "@/services/pdv-data-source";
 import type { RequestState } from "@/types/api";
 import type { PdvProduto } from "@/types/produto";
 import type { PdvCliente } from "@/types/cliente";
 import type { PdvCaixaEstado } from "@/types/caixa";
-import type { PdvPagamentoLinha, PdvVendaTentativa } from "@/types/venda";
+import type { PdvPagamentoLinha, PdvVendaPayload, PdvVendaTentativa } from "@/types/venda";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -62,32 +62,63 @@ function PdvPage() {
 }
 
 function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: () => void }) {
-  // ---- Caixa (apenas estados locais de apresentação nesta etapa) ----
+  // ---- Caixa: GET /api/v1/pdv/caixa/atual e POST /api/v1/pdv/caixa/abertura ----
   const [caixa, setCaixa] = useState<PdvCaixaEstado>("carregando");
   useEffect(() => {
-    const t = setTimeout(() => setCaixa("fechado"), 700);
-    return () => clearTimeout(t);
+    let ativo = true;
+    void (async () => {
+      try {
+        const atual = await pdvDataSource.caixa.atual();
+        if (!ativo) return;
+        setCaixa(atual ? "aberto" : "fechado");
+      } catch {
+        if (ativo) setCaixa("erro");
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
   }, []);
 
   function abrirCaixa() {
     setCaixa("abrindo");
-    setTimeout(() => setCaixa("aberto"), 900);
+    void (async () => {
+      try {
+        // O valor de abertura definitivo virá da tela de abertura; o backend valida.
+        await pdvDataSource.caixa.abrir(0);
+        setCaixa("aberto");
+      } catch {
+        setCaixa("erro");
+      }
+    })();
   }
 
-  // ---- Catálogo (MOCK local; futuro: GET /api/v1/pdv/produtos) ----
+  // ---- Catálogo: GET /api/v1/pdv/produtos (via porta de dados) ----
   const [busca, setBusca] = useState("");
   const [estadoCatalogo, setEstadoCatalogo] = useState<RequestState>("loading");
   const [produtos, setProdutos] = useState<PdvProduto[]>([]);
   const buscaRef = useRef<HTMLInputElement>(null);
 
+  const [recarga, setRecarga] = useState(0);
   useEffect(() => {
+    let ativo = true;
     setEstadoCatalogo("loading");
-    const t = setTimeout(() => {
-      setProdutos(MOCK_PRODUTOS);
-      setEstadoCatalogo("success");
-    }, 600);
-    return () => clearTimeout(t);
-  }, []);
+    void (async () => {
+      try {
+        const lista = await pdvDataSource.produtos.listar();
+        if (!ativo) return;
+        setProdutos(lista);
+        setEstadoCatalogo("success");
+      } catch {
+        if (!ativo) return;
+        setProdutos([]);
+        setEstadoCatalogo("error");
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, [recarga]);
 
   const produtosFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -132,14 +163,40 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
       itens: carrinho.itens,
       total,
     });
-    // MOCK de apresentação — futuro: POST /api/v1/pdv/vendas com a mesma idempotencyKey
-    setTimeout(() => {
-      setTentativa((atual) =>
-        atual && atual.idempotencyKey === idempotencyKey
-          ? { ...atual, estado: "concluida" }
-          : atual,
-      );
-    }, 1200);
+
+    // POST /api/v1/pdv/vendas — o frontend envia apenas intenção.
+    // Preço, estoque e total são autoridade do backend; troco não é enviado.
+    const payload: PdvVendaPayload = {
+      ...(cliente ? { clienteId: cliente.id } : {}),
+      desconto,
+      itens: carrinho.itens.map((item) => ({
+        produtoId: item.produtoId,
+        ...(item.varianteId ? { varianteId: item.varianteId } : {}),
+        quantidade: item.quantidade,
+      })),
+      pagamentos: pagamentos.map((p) => ({ forma: p.forma, valor: p.valor })),
+    };
+
+    void (async () => {
+      try {
+        const venda = await pdvDataSource.vendas.criar(payload, idempotencyKey);
+        setTentativa((atual) =>
+          atual && atual.idempotencyKey === idempotencyKey
+            ? { ...atual, estado: "concluida", vendaId: venda.id }
+            : atual,
+        );
+      } catch (error) {
+        const mensagem =
+          error instanceof Error && error.message
+            ? error.message
+            : "Não foi possível concluir a venda.";
+        setTentativa((atual) =>
+          atual && atual.idempotencyKey === idempotencyKey
+            ? { ...atual, estado: "erro", mensagemErro: mensagem }
+            : atual,
+        );
+      }
+    })();
   }
 
   function finalizarVenda() {
@@ -181,7 +238,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
             busca={busca}
             onBuscaChange={setBusca}
             onSelecionar={setProdutoSelecionado}
-            onTentarNovamente={() => setEstadoCatalogo("loading")}
+            onTentarNovamente={() => setRecarga((n) => n + 1)}
             bloqueado={bloqueado}
           />
         </div>

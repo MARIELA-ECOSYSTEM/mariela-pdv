@@ -1,5 +1,6 @@
 /**
  * MOCK — dados locais mínimos apenas para visualizar a interface.
+ * Consumidos exclusivamente pelo adaptador mock (src/services/mock).
  * Remover integralmente quando a API real (mariela-backend) for conectada.
  */
 import type { PdvProduto } from "@/types/produto";
@@ -98,11 +99,11 @@ export const MOCK_PRODUTOS: PdvProduto[] = [
 ];
 
 export const MOCK_CLIENTES: PdvCliente[] = [
-  { id: "c1", nome: "Ana Beatriz Camargo", telefone: "(11) 98812-4410" },
-  { id: "c2", nome: "Carolina Duarte", telefone: "(11) 99730-2288" },
-  { id: "c3", nome: "Fernanda Lopes", telefone: "(21) 98455-6612" },
-  { id: "c4", nome: "Juliana Prado", telefone: "(11) 97441-0093" },
-  { id: "c5", nome: "Marina Teixeira", telefone: "(31) 98120-7745" },
+  { id: "c1", codigo: "CLI-0001", nome: "Ana Beatriz Camargo", telefone: "(11) 98812-4410" },
+  { id: "c2", codigo: "CLI-0002", nome: "Carolina Duarte", telefone: "(11) 99730-2288" },
+  { id: "c3", codigo: "CLI-0003", nome: "Fernanda Lopes", telefone: "(21) 98455-6612" },
+  { id: "c4", codigo: "CLI-0004", nome: "Juliana Prado", telefone: "(11) 97441-0093" },
+  { id: "c5", codigo: "CLI-0005", nome: "Marina Teixeira", telefone: "(31) 98120-7745" },
 ];
 
 export const MOCK_FORMAS_PAGAMENTO = ["Dinheiro", "PIX", "Débito", "Crédito"];
