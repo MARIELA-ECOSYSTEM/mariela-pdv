@@ -21,8 +21,8 @@ export interface PdvRequestOptions extends Omit<RequestInit, "body"> {
 }
 
 export class PdvHttpError extends Error implements PdvApiError {
-  status?: number;
-  code?: string;
+  status?: number | undefined;
+  code?: string | undefined;
   constructor(message: string, status?: number, code?: string) {
     super(message);
     this.name = "PdvHttpError";
@@ -85,7 +85,7 @@ export async function pdvRequest<T>(path: string, options: PdvRequestOptions = {
         ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
         ...headers,
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
 
     if (res.status === 401 && !_retried) {
