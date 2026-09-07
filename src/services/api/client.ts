@@ -1,16 +1,16 @@
 /**
- * PdvApiClient — camada HTTP própria do PDV.
- * Implementação independente do Backoffice: timeout, tratamento de erro
- * operacional, refresh com single-flight e um único retry.
+ * PdvApiClient — camada HTTP própria do MARIELA PDV.
  *
- * Nenhuma chamada real é executada nesta etapa: a base URL vem de VITE_API_URL
- * e as funções de domínio ainda não são invocadas pela interface.
+ * Independente do Backoffice: não importa apiClient, auth-context, use-auth,
+ * TokenStorage nem session do Backoffice.
+ *
+ * Recursos: base URL por VITE_API_URL, timeout, erro tipado (PdvHttpError),
+ * Bearer token, refresh com single-flight (um refresh por vez), retry único
+ * após refresh e logout quando a sessão não pode ser renovada.
  */
-import type { PdvApiError } from "@/types/api";
+import { PDV_API_PREFIX, PDV_REQUEST_TIMEOUT_MS, assertApiConfigurada } from "@/config/pdv.config";
 import { PdvTokenStorage } from "@/lib/pdv-token-storage";
-
-const BASE_URL = (import.meta.env["VITE_API_URL"] as string | undefined) ?? "";
-const TIMEOUT_MS = 15000;
+import type { PdvApiError } from "@/types/api";
 
 export interface PdvRequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
@@ -40,16 +40,34 @@ function mensagemOperacional(status: number): string {
   return "Não foi possível concluir a operação.";
 }
 
-/** Single-flight: um único refresh por vez, compartilhado entre chamadas. */
+/** Assinantes avisados quando a sessão é perdida de forma irreversível. */
+type SessaoExpiradaHandler = () => void;
+const ouvintesSessaoExpirada = new Set<SessaoExpiradaHandler>();
+
+export function onSessaoExpirada(handler: SessaoExpiradaHandler): () => void {
+  ouvintesSessaoExpirada.add(handler);
+  return () => ouvintesSessaoExpirada.delete(handler);
+}
+
+function encerrarSessao() {
+  PdvTokenStorage.clear();
+  ouvintesSessaoExpirada.forEach((h) => h());
+}
+
+/** Single-flight: um único refresh por vez, compartilhado entre chamadas concorrentes. */
 let refreshEmAndamento: Promise<boolean> | null = null;
 
-async function refreshToken(): Promise<boolean> {
+export function _resetRefreshState() {
+  refreshEmAndamento = null;
+}
+
+async function renovarSessao(): Promise<boolean> {
   if (refreshEmAndamento) return refreshEmAndamento;
   refreshEmAndamento = (async () => {
     const refresh = PdvTokenStorage.getRefreshToken();
-    if (!refresh || !BASE_URL) return false;
+    if (!refresh) return false;
     try {
-      const res = await fetch(`${BASE_URL}/api/v1/pdv/auth/refresh`, {
+      const res = await fetch(`${assertApiConfigurada()}${PDV_API_PREFIX}/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refreshToken: refresh }),
@@ -61,22 +79,25 @@ async function refreshToken(): Promise<boolean> {
       return true;
     } catch {
       return false;
-    } finally {
-      refreshEmAndamento = null;
     }
   })();
-  return refreshEmAndamento;
+  try {
+    return await refreshEmAndamento;
+  } finally {
+    refreshEmAndamento = null;
+  }
 }
 
 export async function pdvRequest<T>(path: string, options: PdvRequestOptions = {}): Promise<T> {
+  const baseUrl = assertApiConfigurada();
   const { body, idempotencyKey, headers, _retried, ...rest } = options;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), PDV_REQUEST_TIMEOUT_MS);
 
   const token = PdvTokenStorage.getAccessToken();
 
   try {
-    const res = await fetch(`${BASE_URL}${path}`, {
+    const res = await fetch(`${baseUrl}${path}`, {
       ...rest,
       signal: controller.signal,
       headers: {
@@ -89,10 +110,12 @@ export async function pdvRequest<T>(path: string, options: PdvRequestOptions = {
     });
 
     if (res.status === 401 && !_retried) {
-      const renovou = await refreshToken();
+      const renovou = await renovarSessao();
       if (renovou) {
+        // Retry único, reaproveitando a MESMA idempotencyKey da tentativa.
         return pdvRequest<T>(path, { ...options, _retried: true });
       }
+      encerrarSessao();
     }
 
     if (!res.ok) {
@@ -110,7 +133,7 @@ export async function pdvRequest<T>(path: string, options: PdvRequestOptions = {
     return (await res.json()) as T;
   } catch (error) {
     if (error instanceof PdvHttpError) throw error;
-    if (error instanceof DOMException && error.name === "AbortError") {
+    if (error instanceof Error && error.name === "AbortError") {
       throw new PdvHttpError("A operação demorou demais. Tente novamente.");
     }
     throw new PdvHttpError("Não foi possível falar com o servidor. Verifique a conexão.");

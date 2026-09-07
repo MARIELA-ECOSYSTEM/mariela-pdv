@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MOCK_CLIENTES } from "@/data/mock.pdv";
+import { pdvDataSource } from "@/services/pdv-data-source";
 import type { PdvCliente } from "@/types/cliente";
 import type { RequestState } from "@/types/api";
 
@@ -27,23 +27,27 @@ export function ClienteDialog({
   const [estado, setEstado] = useState<RequestState>("idle");
   const [resultados, setResultados] = useState<PdvCliente[]>([]);
 
-  // MOCK de apresentação — substituir por listarClientes() (GET /api/v1/pdv/clientes)
+  // Porta de dados (mock ou API real conforme VITE_PDV_DATA_SOURCE):
+  // GET /api/v1/pdv/clientes
   useEffect(() => {
     if (!aberto) return;
+    let ativo = true;
     setEstado("loading");
-    const t = setTimeout(() => {
-      const termo = busca.trim().toLowerCase();
-      setResultados(
-        MOCK_CLIENTES.filter(
-          (c) =>
-            !termo ||
-            c.nome.toLowerCase().includes(termo) ||
-            (c.telefone ?? "").replace(/\D/g, "").includes(termo.replace(/\D/g, "")),
-        ),
-      );
-      setEstado("success");
-    }, 350);
-    return () => clearTimeout(t);
+    void (async () => {
+      try {
+        const lista = await pdvDataSource.clientes.listar({ busca });
+        if (!ativo) return;
+        setResultados(lista);
+        setEstado("success");
+      } catch {
+        if (!ativo) return;
+        setResultados([]);
+        setEstado("error");
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
   }, [aberto, busca]);
 
   return (
