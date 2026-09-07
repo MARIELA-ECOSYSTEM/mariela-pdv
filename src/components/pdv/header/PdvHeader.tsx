@@ -1,6 +1,7 @@
-import { LogOut, CircleDot } from "lucide-react";
+import { LogOut, CircleDot, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MarielaMarca } from "@/components/pdv/MarielaMarca";
+import { usePdvTema } from "@/features/tema/PdvTemaProvider";
 import type { PdvCaixaEstado } from "@/types/caixa";
 
 const rotuloCaixa: Record<PdvCaixaEstado, string> = {
@@ -21,6 +22,8 @@ export function PdvHeader({
   caixa: PdvCaixaEstado;
   onSair: () => void;
 }) {
+  const { tema, alternarTema } = usePdvTema();
+
   return (
     <header className="flex items-center justify-between gap-6 border-b border-border bg-card px-6 py-3">
       <MarielaMarca />
@@ -45,6 +48,17 @@ export function PdvHeader({
           </p>
           <p className="text-sm font-semibold text-foreground">{vendedorNome}</p>
         </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={alternarTema}
+          className="text-muted-foreground"
+          aria-label={tema === "escuro" ? "Usar tema claro" : "Usar tema escuro"}
+          title={tema === "escuro" ? "Usar tema claro" : "Usar tema escuro"}
+        >
+          {tema === "escuro" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+        </Button>
 
         <Button variant="ghost" size="sm" onClick={onSair} className="text-muted-foreground">
           <LogOut className="size-4" />
