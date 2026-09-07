@@ -4,14 +4,14 @@ export interface PdvItemCarrinho {
   /** Chave local do item (produto + variante). */
   linhaId: string;
   produtoId: string;
-  varianteId?: string;
+  varianteId?: string | undefined;
   nome: string;
-  codigo?: string;
-  cor?: string;
-  tamanho?: string;
-  imagemUrl?: string | null;
+  codigo?: string | undefined;
+  cor?: string | undefined;
+  tamanho?: string | undefined;
+  imagemUrl?: string | null | undefined;
   /** Preço vindo da API. O frontend nunca é autoridade sobre preço. */
   precoUnitario: number;
   quantidade: number;
-  estoqueDisponivel?: number;
+  estoqueDisponivel?: number | undefined;
 }

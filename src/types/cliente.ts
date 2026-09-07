@@ -3,5 +3,5 @@
 export interface PdvCliente {
   id: string;
   nome: string;
-  telefone?: string;
+  telefone?: string | undefined;
 }
