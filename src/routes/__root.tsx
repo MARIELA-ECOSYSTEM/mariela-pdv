@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { PdvAuthProvider } from "@/features/auth/PdvAuthProvider";
+import { PdvTemaProvider } from "@/features/tema/PdvTemaProvider";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
