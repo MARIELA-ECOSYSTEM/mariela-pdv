@@ -3,7 +3,7 @@
 export interface PdvVendedor {
   id: string;
   nome: string;
-  login?: string;
+  login?: string | undefined;
 }
 
 export interface PdvLoginPayload {

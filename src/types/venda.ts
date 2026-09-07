@@ -15,11 +15,11 @@ export type PdvVendaEstado =
   | "erro";
 
 export interface PdvVendaPayload {
-  clienteId?: string;
+  clienteId?: string | undefined;
   desconto: number;
   itens: Array<{
     produtoId: string;
-    varianteId?: string;
+    varianteId?: string | undefined;
     quantidade: number;
   }>;
   pagamentos: Array<{ forma: string; valor: number }>;
@@ -29,7 +29,7 @@ export interface PdvVendaTentativa {
   /** Reutilizada em retries da mesma tentativa. */
   idempotencyKey: string;
   estado: PdvVendaEstado;
-  mensagemErro?: string;
-  itens?: PdvItemCarrinho[];
-  total?: number;
+  mensagemErro?: string | undefined;
+  itens?: PdvItemCarrinho[] | undefined;
+  total?: number | undefined;
 }

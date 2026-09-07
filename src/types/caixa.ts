@@ -10,6 +10,6 @@ export type PdvCaixaEstado =
 
 export interface PdvCaixa {
   id: string;
-  abertoEm?: string;
-  valorAbertura?: number;
+  abertoEm?: string | undefined;
+  valorAbertura?: number | undefined;
 }
