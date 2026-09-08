@@ -14,6 +14,7 @@ import { MOCK_FORMAS_PAGAMENTO } from "@/data/mock.pdv";
 import type { PdvPagamentoTotais, PdvVendaTotais } from "@/lib/venda-totais";
 import type { PdvAdquirente } from "@/types/adquirente";
 import type { PdvPagamentoLinha } from "@/types/venda";
+import type { PdvCliente } from "@/types/cliente";
 
 const SELECT = "h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground";
 

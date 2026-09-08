@@ -7,6 +7,7 @@ import { ProdutoDialog } from "@/components/pdv/produto/ProdutoDialog";
 import { CarrinhoPanel } from "@/components/pdv/carrinho/CarrinhoPanel";
 import { ClienteDialog } from "@/components/pdv/cliente/ClienteDialog";
 import { ClienteResumo } from "@/components/pdv/cliente/ClienteResumo";
+import { ClientePanel } from "@/components/pdv/cliente/ClientePanel";
 import { EtapaIndicador, type PdvEtapa } from "@/components/pdv/fluxo/EtapaIndicador";
 import { PagamentoPanel } from "@/components/pdv/pagamento/PagamentoPanel";
 import { CaixaDialog } from "@/components/pdv/caixa/CaixaDialog";
@@ -258,6 +259,10 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
 
   /** Ctrl+Enter avança no fluxo: carrinho → pagamento → conferência. */
   function avancarFluxo() {
+    if (etapa === "cliente") {
+      setEtapa("carrinho");
+      return;
+    }
     if (carrinho.itens.length === 0) return;
     if (etapa === "carrinho") {
       setEtapa("pagamento");
