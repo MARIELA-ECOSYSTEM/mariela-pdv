@@ -15,7 +15,7 @@ export function MarielaMarca({
         className={cn(
           "brand-title leading-none",
           tamanho === "lg" ? "text-4xl" : "text-2xl",
-          invertido ? "text-primary-foreground" : "text-plum",
+          invertido ? "text-primary-foreground" : "text-brand",
         )}
       >
         Mariela

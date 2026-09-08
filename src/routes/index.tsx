@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PdvHeader } from "@/components/pdv/header/PdvHeader";
 import { CatalogoProdutos } from "@/components/pdv/catalogo/CatalogoProdutos";
 import { ProdutoDialog } from "@/components/pdv/produto/ProdutoDialog";
 import { CarrinhoPanel } from "@/components/pdv/carrinho/CarrinhoPanel";
 import { ClienteDialog } from "@/components/pdv/cliente/ClienteDialog";
+import { ClienteResumo } from "@/components/pdv/cliente/ClienteResumo";
+import { EtapaIndicador, type PdvEtapa } from "@/components/pdv/fluxo/EtapaIndicador";
 import { PagamentoPanel } from "@/components/pdv/pagamento/PagamentoPanel";
 import { CaixaDialog } from "@/components/pdv/caixa/CaixaDialog";
 import { VendaDialog } from "@/components/pdv/venda/VendaDialog";
@@ -194,6 +195,9 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     );
   }
 
+  // ---- Etapa do fluxo (apenas UX; nada de estado da venda é perdido) ----
+  const [etapa, setEtapa] = useState<PdvEtapa>("carrinho");
+
   // ---- Venda ----
   const [conferenciaAberta, setConferenciaAberta] = useState(false);
   const [tentativa, setTentativa] = useState<PdvVendaTentativa | null>(null);
@@ -252,6 +256,16 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     setConferenciaAberta(true);
   }
 
+  /** Ctrl+Enter avança no fluxo: carrinho → pagamento → conferência. */
+  function avancarFluxo() {
+    if (carrinho.itens.length === 0) return;
+    if (etapa === "carrinho") {
+      setEtapa("pagamento");
+      return;
+    }
+    abrirConferencia();
+  }
+
   /** Confirmação definitiva: nova venda = nova idempotencyKey. */
   function confirmarVenda() {
     if (tentativa?.estado === "processando") return;
@@ -265,16 +279,17 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     setDescontoVenda(DESCONTO_ZERO);
     setTentativa(null);
     setConferenciaAberta(false);
+    setEtapa("carrinho");
     buscaRef.current?.focus();
   }
 
   const atalhos = useMemo(
     () => [
       { tecla: "/", acao: () => buscaRef.current?.focus() },
-      { tecla: "Enter", ctrl: true, acao: abrirConferencia },
+      { tecla: "Enter", ctrl: true, acao: avancarFluxo },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [carrinho.itens.length, total, tentativa?.estado],
+    [carrinho.itens.length, total, tentativa?.estado, etapa],
   );
   useAtalhos(atalhos, caixa === "aberto");
 
@@ -299,26 +314,33 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         </div>
 
         <aside className="surface-panel flex min-h-0 flex-col overflow-hidden">
-          <CarrinhoPanel
-            itens={carrinho.itens}
+          <EtapaIndicador etapa={etapa} />
+
+          {/* Cliente: contexto da venda, fora do carrinho e do pagamento. */}
+          <ClienteResumo
             cliente={cliente}
-            descontoVenda={descontoVenda}
-            totais={totais}
             onAbrirCliente={() => setClienteAberto(true)}
             onRemoverCliente={() => setCliente(null)}
-            onRemoverItem={carrinho.remover}
-            onAlterarQuantidade={carrinho.alterarQuantidade}
-            onAlterarDescontoItem={carrinho.alterarDesconto}
-            onDescontoVendaChange={setDescontoVenda}
           />
 
-          {/* Pagamento rola por conta própria: nunca empurra o botão para fora. */}
-          <div className="max-h-[45%] shrink-0 overflow-y-auto">
+          {etapa === "carrinho" ? (
+            <CarrinhoPanel
+              itens={carrinho.itens}
+              descontoVenda={descontoVenda}
+              totais={totais}
+              onRemoverItem={carrinho.remover}
+              onAlterarQuantidade={carrinho.alterarQuantidade}
+              onAlterarDescontoItem={carrinho.alterarDesconto}
+              onDescontoVendaChange={setDescontoVenda}
+              onSeguirParaPagamento={() => setEtapa("pagamento")}
+            />
+          ) : (
             <PagamentoPanel
               pagamentos={pagamentos}
-              total={total}
+              totaisVenda={totais}
               totais={pagamentoTotais}
               adquirentes={adquirentes}
+              enviando={tentativa?.estado === "processando"}
               onAdicionar={adicionarPagamento}
               onAlterarValor={(id, valor) =>
                 setPagamentos((atuais) => atuais.map((p) => (p.id === id ? { ...p, valor } : p)))
@@ -328,24 +350,14 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
               }
               onAlterarAdquirente={alterarAdquirente}
               onRemover={(id) => setPagamentos((atuais) => atuais.filter((p) => p.id !== id))}
+              onVoltar={() => setEtapa("carrinho")}
+              onConferir={abrirConferencia}
             />
-          </div>
+          )}
 
-          <div className="shrink-0 border-t border-border p-4">
-            <Button
-              className="h-14 w-full text-base tracking-[0.12em]"
-              disabled={carrinho.itens.length === 0 || tentativa?.estado === "processando"}
-              onClick={abrirConferencia}
-            >
-              {tentativa?.estado === "processando" ? (
-                <Loader2 className="size-5 animate-spin" />
-              ) : null}
-              FINALIZAR VENDA
-            </Button>
-            <p className="mt-2 text-center text-[0.7rem] text-muted-foreground">
-              Atalhos: / buscar · Ctrl+Enter finalizar · Esc fechar
-            </p>
-          </div>
+          <p className="shrink-0 border-t border-border px-4 py-2 text-center text-[0.7rem] text-muted-foreground">
+            Atalhos: / buscar · Ctrl+Enter avançar · Esc fechar
+          </p>
         </aside>
       </div>
 
