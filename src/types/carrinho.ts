@@ -15,6 +15,12 @@ export interface PdvItemCarrinho {
   varianteId: string;
   tamanhoId: string;
   quantidade: number;
+  /**
+   * Desconto do ITEM — conceito separado do desconto sobre o subtotal da venda.
+   * Local por enquanto: o contrato atual de POST /pdv/vendas não recebe
+   * desconto por item, então ele não é enviado até o campo oficial existir.
+   */
+  desconto?: PdvDesconto | undefined;
 
   // Apresentação apenas — nunca enviados como autoridade de preço/estoque.
   nome: string;
