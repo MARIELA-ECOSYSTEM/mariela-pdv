@@ -81,7 +81,9 @@ async function renovarSessao(): Promise<boolean> {
       });
       if (!res.ok) return false;
       // Resposta real: { data: { accessToken, refreshToken, expiresIn, vendedor } }.
-      const corpo = (await res.json()) as { data?: { accessToken?: string; refreshToken?: string } };
+      const corpo = (await res.json()) as {
+        data?: { accessToken?: string; refreshToken?: string };
+      };
       const dados = corpo.data;
       if (!dados?.accessToken) return false;
       PdvTokenStorage.setTokens(dados.accessToken, dados.refreshToken);

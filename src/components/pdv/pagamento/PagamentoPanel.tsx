@@ -87,9 +87,7 @@ export function PagamentoPanel({
           <span className="font-semibold text-accent-foreground">{formatMoeda(troco)}</span>
         </div>
       )}
-      <p className="text-[0.7rem] text-muted-foreground">
-        Total da venda: {formatMoeda(total)}
-      </p>
+      <p className="text-[0.7rem] text-muted-foreground">Total da venda: {formatMoeda(total)}</p>
     </div>
   );
 }

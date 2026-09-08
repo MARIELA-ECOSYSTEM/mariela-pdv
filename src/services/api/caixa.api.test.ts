@@ -20,7 +20,10 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("caixaApi.atual", () => {
   it("{ data: null } (nenhum caixa aberto) vira null", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(null)));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse(null)),
+    );
 
     const atual = await caixaApi.atual();
 

@@ -50,7 +50,10 @@ const PRODUTO_TRADUZIDO = {
 
 describe("produtosApi.listar", () => {
   it("desembrulha { data: [...], meta } e traduz codProduto/precoEfetivo/imagem, preservando variantes/tamanhos", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse([PRODUTO_BRUTO])));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse([PRODUTO_BRUTO])),
+    );
 
     const lista = await produtosApi.listar();
 
@@ -63,7 +66,10 @@ describe("produtosApi.listar", () => {
 
 describe("produtosApi.obter", () => {
   it("desembrulha { data: {...} } e traduz da mesma forma que a listagem", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(PRODUTO_BRUTO)));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse(PRODUTO_BRUTO)),
+    );
 
     const produto = await produtosApi.obter("p1");
 

@@ -94,9 +94,12 @@ describe("POST /api/v1/pdv/vendas", () => {
     await vendasApi.criar(payload, "chave-2");
 
     const chamadas = fetchMock.mock.calls as unknown as [string, RequestInit][];
-    const chavesHeader = chamadas.map(([, init]) => (init.headers as Record<string, string>)["Idempotency-Key"]);
+    const chavesHeader = chamadas.map(
+      ([, init]) => (init.headers as Record<string, string>)["Idempotency-Key"],
+    );
     const chavesCorpo = chamadas.map(
-      ([, init]) => (JSON.parse((init.body as string) ?? "{}") as Record<string, unknown>)["idempotencyKey"],
+      ([, init]) =>
+        (JSON.parse((init.body as string) ?? "{}") as Record<string, unknown>)["idempotencyKey"],
     );
     expect(chavesHeader).toEqual(["chave-2", "chave-2"]);
     expect(chavesCorpo).toEqual(["chave-2", "chave-2"]);

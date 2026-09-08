@@ -116,11 +116,11 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <PdvTemaProvider>
-      <PdvAuthProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        <Toaster />
-      </PdvAuthProvider>
+        <PdvAuthProvider>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+          <Toaster />
+        </PdvAuthProvider>
       </PdvTemaProvider>
     </QueryClientProvider>
   );

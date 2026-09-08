@@ -105,33 +105,34 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     // O termo digitado vai ao backend como `busca` (GET /pdv/produtos?busca=).
     // Debounce apenas para não disparar uma requisição por tecla.
     const termo = busca.trim();
-    const disparo = setTimeout(() => {
-      void (async () => {
-        try {
-          const lista = await pdvDataSource.produtos.listar(termo ? { busca: termo } : undefined);
-          if (!ativo) return;
-          setProdutos(lista);
-          setEstadoCatalogo("success");
-        } catch {
-          if (!ativo) return;
-          setProdutos([]);
-          setEstadoCatalogo("error");
-        }
-      })();
-    }, termo ? 300 : 0);
+    const disparo = setTimeout(
+      () => {
+        void (async () => {
+          try {
+            const lista = await pdvDataSource.produtos.listar(termo ? { busca: termo } : undefined);
+            if (!ativo) return;
+            setProdutos(lista);
+            setEstadoCatalogo("success");
+          } catch {
+            if (!ativo) return;
+            setProdutos([]);
+            setEstadoCatalogo("error");
+          }
+        })();
+      },
+      termo ? 300 : 0,
+    );
     return () => {
       ativo = false;
       clearTimeout(disparo);
     };
   }, [recarga, busca]);
 
-
   const produtosFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     if (!termo) return produtos;
     return produtos.filter(
-      (p) =>
-        p.nome.toLowerCase().includes(termo) || (p.codigo ?? "").toLowerCase().includes(termo),
+      (p) => p.nome.toLowerCase().includes(termo) || (p.codigo ?? "").toLowerCase().includes(termo),
     );
   }, [produtos, busca]);
 

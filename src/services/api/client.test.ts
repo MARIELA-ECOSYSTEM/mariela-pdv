@@ -33,7 +33,10 @@ describe("PdvApiClient", () => {
   });
 
   it("sucesso: { data: null } (ex.: caixa/atual sem caixa aberto) vira null, não um objeto truthy", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ data: null })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ data: null })),
+    );
 
     const resultado = await PdvApiClient.get<{ id: string } | null>("/api/v1/pdv/caixa/atual");
 
@@ -41,7 +44,10 @@ describe("PdvApiClient", () => {
   });
 
   it("erro HTTP: converte status em PdvHttpError com mensagem operacional", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ code: "CAIXA_CONFLITO" }, 409)));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ code: "CAIXA_CONFLITO" }, 409)),
+    );
 
     await expect(PdvApiClient.get("/api/v1/pdv/caixa/atual")).rejects.toMatchObject({
       name: "PdvHttpError",
@@ -82,9 +88,7 @@ describe("PdvApiClient", () => {
       PdvApiClient.get("/api/v1/pdv/caixa/atual"),
     ]);
 
-    const refreshes = fetchMock.mock.calls.filter(([url]) =>
-      String(url).endsWith("/auth/refresh"),
-    );
+    const refreshes = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/auth/refresh"));
     expect(refreshes).toHaveLength(1);
   });
 
