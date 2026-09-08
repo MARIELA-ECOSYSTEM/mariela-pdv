@@ -263,7 +263,9 @@ export function PagamentoPanel({
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Pendente</span>
-          <span className="font-medium text-surface-foreground">{formatMoeda(totais.pendente)}</span>
+          <span className="font-medium text-surface-foreground">
+            {formatMoeda(totais.pendente)}
+          </span>
         </div>
         {totais.troco > 0.001 && (
           <div className="flex items-center justify-between rounded-lg bg-accent px-3 py-2 text-sm">
