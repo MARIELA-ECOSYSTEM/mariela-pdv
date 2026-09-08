@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PdvHeader } from "@/components/pdv/header/PdvHeader";
 import { CatalogoProdutos } from "@/components/pdv/catalogo/CatalogoProdutos";
 import { ProdutoDialog } from "@/components/pdv/produto/ProdutoDialog";
 import { CarrinhoPanel } from "@/components/pdv/carrinho/CarrinhoPanel";
 import { ClienteDialog } from "@/components/pdv/cliente/ClienteDialog";
+import { ClienteResumo } from "@/components/pdv/cliente/ClienteResumo";
+import { EtapaIndicador, type PdvEtapa } from "@/components/pdv/fluxo/EtapaIndicador";
 import { PagamentoPanel } from "@/components/pdv/pagamento/PagamentoPanel";
 import { CaixaDialog } from "@/components/pdv/caixa/CaixaDialog";
 import { VendaDialog } from "@/components/pdv/venda/VendaDialog";
