@@ -269,6 +269,11 @@ export function PagamentoPanel({
             {formatMoeda(totais.pendente)}
           </span>
         </div>
+        {totais.pendente > 0.001 && (
+          <p className="text-[0.7rem] leading-snug text-muted-foreground">
+            Saldo em aberto {cliente ? `para ${cliente.nome}` : "sem cliente associado"}.
+          </p>
+        )}
         {totais.troco > 0.001 && (
           <div className="flex items-center justify-between rounded-lg bg-accent px-3 py-2 text-sm">
             <span className="font-medium text-accent-foreground">Troco</span>
@@ -292,7 +297,8 @@ export function PagamentoPanel({
           onClick={onConferir}
         >
           {enviando ? <Loader2 className="size-5 animate-spin" /> : null}
-          FINALIZAR VENDA
+          CONFERIR VENDA
+
         </Button>
       </div>
     </div>
