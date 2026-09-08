@@ -283,27 +283,29 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
           <CarrinhoPanel
             itens={carrinho.itens}
             cliente={cliente}
-            descontoTexto={descontoTexto}
-            subtotal={carrinho.subtotal}
-            desconto={desconto}
-            total={total}
+            descontoVenda={descontoVenda}
+            totais={totais}
             onAbrirCliente={() => setClienteAberto(true)}
             onRemoverCliente={() => setCliente(null)}
             onRemoverItem={carrinho.remover}
             onAlterarQuantidade={carrinho.alterarQuantidade}
-            onDescontoChange={setDescontoTexto}
+            onAlterarDescontoItem={carrinho.alterarDesconto}
+            onDescontoVendaChange={setDescontoVenda}
           />
 
           <PagamentoPanel
             pagamentos={pagamentos}
             total={total}
-            pago={pago}
-            restante={restante}
-            troco={troco}
+            totais={pagamentoTotais}
             onAdicionar={adicionarPagamento}
             onAlterarValor={(id, texto) =>
               setPagamentos((atuais) =>
                 atuais.map((p) => (p.id === id ? { ...p, valor: parseValor(texto) } : p)),
+              )
+            }
+            onAlterarParcelas={(id, parcelas) =>
+              setPagamentos((atuais) =>
+                atuais.map((p) => (p.id === id ? { ...p, parcelas } : p)),
               )
             }
             onRemover={(id) => setPagamentos((atuais) => atuais.filter((p) => p.id !== id))}
@@ -313,7 +315,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
             <Button
               className="h-14 w-full text-base tracking-[0.12em]"
               disabled={carrinho.itens.length === 0 || tentativa?.estado === "processando"}
-              onClick={finalizarVenda}
+              onClick={abrirConferencia}
             >
               {tentativa?.estado === "processando" ? (
                 <Loader2 className="size-5 animate-spin" />
