@@ -10,16 +10,20 @@ import { ClienteDialog } from "@/components/pdv/cliente/ClienteDialog";
 import { PagamentoPanel } from "@/components/pdv/pagamento/PagamentoPanel";
 import { CaixaDialog } from "@/components/pdv/caixa/CaixaDialog";
 import { VendaDialog } from "@/components/pdv/venda/VendaDialog";
+import { ConferenciaDialog } from "@/components/pdv/venda/ConferenciaDialog";
 import { usePdvAuth } from "@/features/auth/PdvAuthProvider";
 import { useCarrinho } from "@/features/carrinho/useCarrinho";
 import { useAtalhos } from "@/features/atalhos/useAtalhos";
 import { parseValor } from "@/lib/format";
+import { formaEhCredito } from "@/lib/pagamento";
+import { calcularTotaisPagamento, calcularTotaisVenda } from "@/lib/venda-totais";
 import { gerarUuid } from "@/lib/uuid";
 import { pdvDataSource } from "@/services/pdv-data-source";
 import type { RequestState } from "@/types/api";
 import type { PdvProduto } from "@/types/produto";
 import type { PdvCliente } from "@/types/cliente";
 import type { PdvCaixaEstado } from "@/types/caixa";
+import { DESCONTO_ZERO, type PdvDesconto } from "@/types/desconto";
 import type { PdvPagamentoLinha, PdvVendaPayload, PdvVendaTentativa } from "@/types/venda";
 
 export const Route = createFileRoute("/")({
@@ -143,25 +147,36 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
   const [cliente, setCliente] = useState<PdvCliente | null>(null);
   const carrinho = useCarrinho();
 
-  // ---- Desconto (intenção; backend é a autoridade) ----
-  const [descontoTexto, setDescontoTexto] = useState("");
-  const desconto = parseValor(descontoTexto);
-  const total = Math.max(0, carrinho.subtotal - Math.min(desconto, carrinho.subtotal));
+  // ---- Descontos (intenção; backend é a autoridade) ----
+  // Desconto por item vive no carrinho; este é o desconto sobre o subtotal.
+  const [descontoVenda, setDescontoVenda] = useState<PdvDesconto>(DESCONTO_ZERO);
+  const totais = useMemo(
+    () => calcularTotaisVenda(carrinho.itens, descontoVenda),
+    [carrinho.itens, descontoVenda],
+  );
+  const total = totais.total;
 
   // ---- Pagamentos ----
   const [pagamentos, setPagamentos] = useState<PdvPagamentoLinha[]>([]);
-  const pago = pagamentos.reduce((t, p) => t + p.valor, 0);
-  const restante = Math.max(0, total - pago);
-  const troco = Math.max(0, pago - total); // apenas auxílio visual; não é enviado ao backend
+  const pagamentoTotais = useMemo(
+    () => calcularTotaisPagamento(pagamentos, total),
+    [pagamentos, total],
+  );
 
   function adicionarPagamento(forma: string) {
     setPagamentos((atuais) => [
       ...atuais,
-      { id: gerarUuid(), forma, valor: Number(restante.toFixed(2)) },
+      {
+        id: gerarUuid(),
+        forma,
+        valor: Number(pagamentoTotais.pendente.toFixed(2)),
+        ...(formaEhCredito(forma) ? { parcelas: 1 } : {}),
+      },
     ]);
   }
 
   // ---- Venda ----
+  const [conferenciaAberta, setConferenciaAberta] = useState(false);
   const [tentativa, setTentativa] = useState<PdvVendaTentativa | null>(null);
 
   function enviarVenda(idempotencyKey: string) {
@@ -174,9 +189,11 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
 
     // POST /api/v1/pdv/vendas — o frontend envia apenas intenção.
     // Preço, estoque e total são autoridade do backend; troco não é enviado.
+    // Descontos por item, parcelas e tarifa ainda não têm campo no contrato
+    // atual, então permanecem apenas no estado local até o contrato existir.
     const payload: PdvVendaPayload = {
       ...(cliente ? { clienteId: cliente.id } : {}),
-      descontoVenda: desconto,
+      descontoVenda: totais.descontoVenda,
       itens: carrinho.itens.map((item) => ({
         produtoId: item.produtoId,
         varianteId: item.varianteId,
@@ -189,6 +206,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     void (async () => {
       try {
         const venda = await pdvDataSource.vendas.criar(payload, idempotencyKey);
+        setConferenciaAberta(false);
         setTentativa((atual) =>
           atual && atual.idempotencyKey === idempotencyKey
             ? { ...atual, estado: "concluida", vendaId: venda.id }
@@ -199,6 +217,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
           error instanceof Error && error.message
             ? error.message
             : "Não foi possível concluir a venda.";
+        setConferenciaAberta(false);
         setTentativa((atual) =>
           atual && atual.idempotencyKey === idempotencyKey
             ? { ...atual, estado: "erro", mensagemErro: mensagem }
@@ -208,8 +227,15 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     })();
   }
 
-  function finalizarVenda() {
+  /** Abre a conferência — nada é enviado ao backend aqui. */
+  function abrirConferencia() {
     if (carrinho.itens.length === 0 || tentativa?.estado === "processando") return;
+    setConferenciaAberta(true);
+  }
+
+  /** Confirmação definitiva: nova venda = nova idempotencyKey. */
+  function confirmarVenda() {
+    if (tentativa?.estado === "processando") return;
     enviarVenda(gerarUuid());
   }
 
@@ -217,15 +243,16 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     carrinho.limpar();
     setCliente(null);
     setPagamentos([]);
-    setDescontoTexto("");
+    setDescontoVenda(DESCONTO_ZERO);
     setTentativa(null);
+    setConferenciaAberta(false);
     buscaRef.current?.focus();
   }
 
   const atalhos = useMemo(
     () => [
       { tecla: "/", acao: () => buscaRef.current?.focus() },
-      { tecla: "Enter", ctrl: true, acao: finalizarVenda },
+      { tecla: "Enter", ctrl: true, acao: abrirConferencia },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [carrinho.itens.length, total, tentativa?.estado],
@@ -256,28 +283,28 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
           <CarrinhoPanel
             itens={carrinho.itens}
             cliente={cliente}
-            descontoTexto={descontoTexto}
-            subtotal={carrinho.subtotal}
-            desconto={desconto}
-            total={total}
+            descontoVenda={descontoVenda}
+            totais={totais}
             onAbrirCliente={() => setClienteAberto(true)}
             onRemoverCliente={() => setCliente(null)}
             onRemoverItem={carrinho.remover}
             onAlterarQuantidade={carrinho.alterarQuantidade}
-            onDescontoChange={setDescontoTexto}
+            onAlterarDescontoItem={carrinho.alterarDesconto}
+            onDescontoVendaChange={setDescontoVenda}
           />
 
           <PagamentoPanel
             pagamentos={pagamentos}
             total={total}
-            pago={pago}
-            restante={restante}
-            troco={troco}
+            totais={pagamentoTotais}
             onAdicionar={adicionarPagamento}
             onAlterarValor={(id, texto) =>
               setPagamentos((atuais) =>
                 atuais.map((p) => (p.id === id ? { ...p, valor: parseValor(texto) } : p)),
               )
+            }
+            onAlterarParcelas={(id, parcelas) =>
+              setPagamentos((atuais) => atuais.map((p) => (p.id === id ? { ...p, parcelas } : p)))
             }
             onRemover={(id) => setPagamentos((atuais) => atuais.filter((p) => p.id !== id))}
           />
@@ -286,7 +313,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
             <Button
               className="h-14 w-full text-base tracking-[0.12em]"
               disabled={carrinho.itens.length === 0 || tentativa?.estado === "processando"}
-              onClick={finalizarVenda}
+              onClick={abrirConferencia}
             >
               {tentativa?.estado === "processando" ? (
                 <Loader2 className="size-5 animate-spin" />
@@ -314,6 +341,20 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
       />
 
       <CaixaDialog estado={caixa} onAbrirCaixa={abrirCaixa} />
+
+      {/* Conferência antes do POST — "Voltar e editar" preserva toda a venda. */}
+      <ConferenciaDialog
+        aberto={conferenciaAberta}
+        vendedorNome={vendedorNome}
+        cliente={cliente}
+        itens={carrinho.itens}
+        totais={totais}
+        pagamentos={pagamentos}
+        pagamentoTotais={pagamentoTotais}
+        enviando={tentativa?.estado === "processando"}
+        onVoltar={() => setConferenciaAberta(false)}
+        onConfirmar={confirmarVenda}
+      />
 
       <VendaDialog
         tentativa={tentativa}

@@ -8,6 +8,8 @@
  * no frontend. Os demais campos são só apresentação (rótulo, foto, preço
  * exibido) e nunca substituem o que o backend recalcula na venda.
  */
+import type { PdvDesconto } from "./desconto";
+
 export interface PdvItemCarrinho {
   /** Chave local do item — produto + variante + tamanho (única no carrinho). */
   linhaId: string;
@@ -15,6 +17,12 @@ export interface PdvItemCarrinho {
   varianteId: string;
   tamanhoId: string;
   quantidade: number;
+  /**
+   * Desconto do ITEM — conceito separado do desconto sobre o subtotal da venda.
+   * Local por enquanto: o contrato atual de POST /pdv/vendas não recebe
+   * desconto por item, então ele não é enviado até o campo oficial existir.
+   */
+  desconto?: PdvDesconto | undefined;
 
   // Apresentação apenas — nunca enviados como autoridade de preço/estoque.
   nome: string;
