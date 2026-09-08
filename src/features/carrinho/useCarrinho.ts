@@ -1,5 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
+import { limitarDesconto } from "@/lib/desconto";
+import { totaisDoItem } from "@/lib/venda-totais";
 import type { PdvItemCarrinho } from "@/types/carrinho";
+import type { PdvDesconto } from "@/types/desconto";
 
 /** Carrinho 100% local — sem persistência em storage, banco ou backend. */
 export function useCarrinho() {
@@ -30,10 +33,31 @@ export function useCarrinho() {
     );
   }, []);
 
+  /** Desconto do item — separado do desconto sobre o subtotal da venda. */
+  const alterarDesconto = useCallback((linhaId: string, desconto: PdvDesconto) => {
+    setItens((atuais) =>
+      atuais.map((i) =>
+        i.linhaId === linhaId
+          ? { ...i, desconto: limitarDesconto(i.precoUnitario * i.quantidade, desconto) }
+          : i,
+      ),
+    );
+  }, []);
+
   const limpar = useCallback(() => setItens([]), []);
 
   const subtotal = useMemo(
     () => itens.reduce((total, i) => total + i.precoUnitario * i.quantidade, 0),
+    [itens],
+  );
+
+  const descontoItens = useMemo(
+    () => itens.reduce((total, i) => total + totaisDoItem(i).desconto, 0),
+    [itens],
+  );
+
+  const subtotalAposItens = useMemo(
+    () => itens.reduce((total, i) => total + totaisDoItem(i).liquido, 0),
     [itens],
   );
 
@@ -42,5 +66,16 @@ export function useCarrinho() {
     [itens],
   );
 
-  return { itens, adicionar, remover, alterarQuantidade, limpar, subtotal, quantidadeTotal };
+  return {
+    itens,
+    adicionar,
+    remover,
+    alterarQuantidade,
+    alterarDesconto,
+    limpar,
+    subtotal,
+    descontoItens,
+    subtotalAposItens,
+    quantidadeTotal,
+  };
 }
