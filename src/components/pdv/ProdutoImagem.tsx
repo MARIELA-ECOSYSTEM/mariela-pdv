@@ -9,7 +9,7 @@ export function ProdutoImagem({
   produto,
   className,
 }: {
-  produto: Pick<PdvProduto, "nome" | "imagemUrl" | "codigo">;
+  produto: Pick<PdvProduto, "nome" | "imagemUrl">;
   className?: string;
 }) {
   if (produto.imagemUrl) {

@@ -80,12 +80,11 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     };
   }, []);
 
-  function abrirCaixa() {
+  function abrirCaixa(valorInicial: number) {
     setCaixa("abrindo");
     void (async () => {
       try {
-        // O valor de abertura definitivo virá da tela de abertura; o backend valida.
-        await pdvDataSource.caixa.abrir(0);
+        await pdvDataSource.caixa.abrir(valorInicial);
         setCaixa("aberto");
       } catch {
         setCaixa("erro");
@@ -168,10 +167,11 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     // Preço, estoque e total são autoridade do backend; troco não é enviado.
     const payload: PdvVendaPayload = {
       ...(cliente ? { clienteId: cliente.id } : {}),
-      desconto,
+      descontoVenda: desconto,
       itens: carrinho.itens.map((item) => ({
         produtoId: item.produtoId,
-        ...(item.varianteId ? { varianteId: item.varianteId } : {}),
+        varianteId: item.varianteId,
+        tamanhoId: item.tamanhoId,
         quantidade: item.quantidade,
       })),
       pagamentos: pagamentos.map((p) => ({ forma: p.forma, valor: p.valor })),

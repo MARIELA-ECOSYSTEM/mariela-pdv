@@ -11,17 +11,13 @@ export interface PdvApiError {
 }
 
 /**
- * Envelope de listagem do backend.
- * Confirmado no contrato de GET /api/v1/pdv/clientes: { data: [...], meta: {...} }.
- * O conteúdo exato de `meta` ainda não foi especificado — por isso permanece
- * aberto, sem campos inventados.
+ * Nota sobre o envelope do backend: TODA resposta de sucesso vem embrulhada
+ * em `{ data: ... }` (listagens em `{ data: [...], meta: {...} }`) — ver
+ * `ResponseInterceptor` do mariela-backend. O desembrulho é feito uma única
+ * vez em `services/api/client.ts`; nenhum tipo de envelope é necessário aqui.
  */
-export interface PdvListaEnvelope<T> {
-  data: T[];
-  meta?: Record<string, unknown> | undefined;
-}
 
-/** Parâmetros de busca aceitos pelas listagens. Nome do parâmetro a confirmar no backend. */
+/** Parâmetros de busca aceitos pelas listagens (`busca`, confirmado nos DTOs de produtos e clientes do backend). */
 export interface PdvBuscaParams {
   busca?: string | undefined;
 }

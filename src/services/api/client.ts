@@ -7,6 +7,13 @@
  * Recursos: base URL por VITE_API_URL, timeout, erro tipado (PdvHttpError),
  * Bearer token, refresh com single-flight (um refresh por vez), retry único
  * após refresh e logout quando a sessão não pode ser renovada.
+ *
+ * Envelope: TODA resposta de sucesso do mariela-backend vem embrulhada em
+ * `{ data: ... }` (listagens vêm em `{ data: [...], meta: {...} }`) — ver
+ * `ResponseInterceptor` global do backend. Esse desembrulho é feito UMA ÚNICA
+ * VEZ aqui: os serviços de API (`auth.api.ts`, `caixa.api.ts`, etc.) recebem
+ * diretamente o conteúdo de `data`, nunca o envelope HTTP. Não desembrulhar
+ * `.data` de novo em nenhum outro lugar.
  */
 import { PDV_API_PREFIX, PDV_REQUEST_TIMEOUT_MS, assertApiConfigurada } from "@/config/pdv.config";
 import { PdvTokenStorage } from "@/lib/pdv-token-storage";
@@ -73,9 +80,11 @@ async function renovarSessao(): Promise<boolean> {
         body: JSON.stringify({ refreshToken: refresh }),
       });
       if (!res.ok) return false;
-      const data = (await res.json()) as { accessToken?: string; refreshToken?: string };
-      if (!data.accessToken) return false;
-      PdvTokenStorage.setTokens(data.accessToken, data.refreshToken);
+      // Resposta real: { data: { accessToken, refreshToken, expiresIn, vendedor } }.
+      const corpo = (await res.json()) as { data?: { accessToken?: string; refreshToken?: string } };
+      const dados = corpo.data;
+      if (!dados?.accessToken) return false;
+      PdvTokenStorage.setTokens(dados.accessToken, dados.refreshToken);
       return true;
     } catch {
       return false;
@@ -130,7 +139,11 @@ export async function pdvRequest<T>(path: string, options: PdvRequestOptions = {
     }
 
     if (res.status === 204) return undefined as T;
-    return (await res.json()) as T;
+    // Desembrulha o envelope { data } aplicado pelo backend a toda resposta
+    // de sucesso (ver nota no topo do arquivo). Listagens já vêm como
+    // { data: [...], meta }, então `corpo.data` também resolve para o array.
+    const corpo = (await res.json()) as { data: T };
+    return corpo.data;
   } catch (error) {
     if (error instanceof PdvHttpError) throw error;
     if (error instanceof Error && error.name === "AbortError") {

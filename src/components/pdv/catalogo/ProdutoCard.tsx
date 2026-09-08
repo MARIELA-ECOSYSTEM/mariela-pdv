@@ -9,8 +9,8 @@ export function ProdutoCard({
   produto: PdvProduto;
   onSelecionar: (produto: PdvProduto) => void;
 }) {
-  const estoque = (produto.variantes ?? []).reduce((t, v) => t + (v.estoque ?? 0), 0);
-  const disponivel = produto.disponivel !== false && estoque > 0;
+  const estoque = produto.variantes.reduce((t, v) => t + v.quantidade, 0);
+  const disponivel = produto.disponivel && estoque > 0;
 
   return (
     <button

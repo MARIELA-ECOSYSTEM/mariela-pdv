@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import {
   Dialog,
@@ -26,41 +26,39 @@ export function ProdutoDialog({
   onAdicionar: (item: PdvItemCarrinho) => void;
 }) {
   const variantes = produto?.variantes ?? [];
-  const cores = useMemo(
-    () => Array.from(new Set(variantes.map((v) => v.cor).filter(Boolean))) as string[],
-    [variantes],
-  );
 
-  const [cor, setCor] = useState<string | undefined>(undefined);
   const [varianteId, setVarianteId] = useState<string | undefined>(undefined);
+  const [tamanhoId, setTamanhoId] = useState<string | undefined>(undefined);
   const [quantidade, setQuantidade] = useState(1);
 
   useEffect(() => {
     if (!aberto) return;
-    setCor(cores[0]);
-    setVarianteId(undefined);
+    setVarianteId(produto?.variantes[0]?.id);
+    setTamanhoId(undefined);
     setQuantidade(1);
-  }, [aberto, produto?.id, cores]);
+  }, [aberto, produto]);
 
-  const tamanhos = variantes.filter((v) => (cor ? v.cor === cor : true));
   const variante = variantes.find((v) => v.id === varianteId);
-  const estoque = variante?.estoque ?? 0;
-  const podeAdicionar = !!produto && (variantes.length === 0 || (!!variante && estoque > 0));
+  const tamanhos = variante?.tamanhos ?? [];
+  const tamanho = tamanhos.find((t) => t.id === tamanhoId);
+  const estoque = tamanho?.quantidade ?? 0;
+  const podeAdicionar = !!produto && !!variante && !!tamanho && estoque > 0;
 
   function adicionar() {
-    if (!produto) return;
+    if (!produto || !variante || !tamanho) return;
     onAdicionar({
-      linhaId: `${produto.id}:${variante?.id ?? "unico"}`,
+      linhaId: `${produto.id}:${variante.id}:${tamanho.id}`,
       produtoId: produto.id,
-      varianteId: variante?.id,
+      varianteId: variante.id,
+      tamanhoId: tamanho.id,
       nome: produto.nome,
       codigo: produto.codigo,
-      cor: variante?.cor,
-      tamanho: variante?.tamanho,
-      imagemUrl: produto.imagemUrl ?? null,
+      cor: variante.cor,
+      tamanho: tamanho.tamanho,
+      imagemUrl: produto.imagemUrl,
       precoUnitario: produto.preco,
       quantidade,
-      estoqueDisponivel: variante?.estoque,
+      estoqueDisponivel: tamanho.quantidade,
     });
     onFechar();
   }
@@ -89,26 +87,27 @@ export function ProdutoDialog({
                   </p>
                 </div>
 
-                {cores.length > 0 && (
+                {variantes.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Cor</p>
                     <div className="flex flex-wrap gap-2">
-                      {cores.map((c) => (
+                      {variantes.map((v) => (
                         <button
-                          key={c}
+                          key={v.id}
                           type="button"
                           onClick={() => {
-                            setCor(c);
-                            setVarianteId(undefined);
+                            setVarianteId(v.id);
+                            setTamanhoId(undefined);
+                            setQuantidade(1);
                           }}
                           className={cn(
                             "rounded-full border px-4 py-1.5 text-sm transition-colors",
-                            cor === c
+                            varianteId === v.id
                               ? "border-primary bg-primary text-primary-foreground"
                               : "border-border bg-card hover:border-primary/40",
                           )}
                         >
-                          {c}
+                          {v.cor}
                         </button>
                       ))}
                     </div>
@@ -119,32 +118,32 @@ export function ProdutoDialog({
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Tamanho</p>
                     <div className="flex flex-wrap gap-2">
-                      {tamanhos.map((v) => {
-                        const semEstoque = (v.estoque ?? 0) <= 0;
+                      {tamanhos.map((t) => {
+                        const semEstoque = !t.disponivel || t.quantidade <= 0;
                         return (
                           <button
-                            key={v.id}
+                            key={t.id}
                             type="button"
                             disabled={semEstoque}
                             onClick={() => {
-                              setVarianteId(v.id);
+                              setTamanhoId(t.id);
                               setQuantidade(1);
                             }}
                             className={cn(
                               "min-w-14 rounded-lg border px-3 py-2 text-sm transition-colors",
-                              varianteId === v.id
+                              tamanhoId === t.id
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : "border-border bg-card hover:border-primary/40",
                               semEstoque && "cursor-not-allowed line-through opacity-50",
                             )}
                           >
-                            {v.tamanho ?? "Único"}
+                            {t.tamanho}
                           </button>
                         );
                       })}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {variante
+                      {tamanho
                         ? `${estoque} peça(s) disponível(is)`
                         : "Selecione o tamanho para ver o estoque."}
                     </p>

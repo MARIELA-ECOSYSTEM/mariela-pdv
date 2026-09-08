@@ -39,8 +39,10 @@ export const mockDataSource: PdvDataSource = {
       }
       const vendedor: PdvVendedor = {
         id: "mock-vendedor",
+        codigo: payload.login.trim(),
         nome: payload.login.trim(),
-        login: payload.login.trim(),
+        foto: null,
+        ativo: true,
       };
       PdvTokenStorage.setTokens("mock-access-token", "mock-refresh-token");
       return vendedor;
@@ -53,7 +55,7 @@ export const mockDataSource: PdvDataSource = {
       if (!PdvTokenStorage.getAccessToken()) {
         throw new PdvHttpError("Sua sessão expirou. Entre novamente para continuar.", 401);
       }
-      return { id: "mock-vendedor", nome: "Vendedor", login: "vendedor" };
+      return { id: "mock-vendedor", codigo: "VEN-0001", nome: "Vendedor", foto: null, ativo: true };
     },
   },
 

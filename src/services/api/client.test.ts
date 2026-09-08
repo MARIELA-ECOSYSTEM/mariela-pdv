@@ -20,18 +20,24 @@ afterEach(() => {
 });
 
 describe("PdvApiClient", () => {
-  it("sucesso: envia Bearer token e devolve o corpo", async () => {
+  it("sucesso: envia Bearer token e desembrulha o envelope { data }", async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ data: [{ id: "c1", nome: "Ana" }] }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const resultado = await PdvApiClient.get<{ data: Array<{ id: string }> }>(
-      "/api/v1/pdv/clientes",
-    );
+    const resultado = await PdvApiClient.get<Array<{ id: string }>>("/api/v1/pdv/clientes");
 
-    expect(resultado.data[0]?.id).toBe("c1");
+    expect(resultado[0]?.id).toBe("c1");
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("http://backend.test/api/v1/pdv/clientes");
     expect((init.headers as Record<string, string>)["Authorization"]).toBe("Bearer access-antigo");
+  });
+
+  it("sucesso: { data: null } (ex.: caixa/atual sem caixa aberto) vira null, não um objeto truthy", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ data: null })));
+
+    const resultado = await PdvApiClient.get<{ id: string } | null>("/api/v1/pdv/caixa/atual");
+
+    expect(resultado).toBeNull();
   });
 
   it("erro HTTP: converte status em PdvHttpError com mensagem operacional", async () => {
@@ -48,8 +54,10 @@ describe("PdvApiClient", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ message: "expirado" }, 401))
-      .mockResolvedValueOnce(jsonResponse({ accessToken: "access-novo", refreshToken: "r2" }))
-      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+      .mockResolvedValueOnce(
+        jsonResponse({ data: { accessToken: "access-novo", refreshToken: "r2" } }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ data: { ok: true } }));
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(PdvApiClient.get("/api/v1/pdv/auth/me")).resolves.toEqual({ ok: true });
@@ -61,10 +69,10 @@ describe("PdvApiClient", () => {
     const fetchMock = vi.fn(async (url: string) => {
       if (url.endsWith("/auth/refresh")) {
         await new Promise((r) => setTimeout(r, 20));
-        return jsonResponse({ accessToken: "access-novo" });
+        return jsonResponse({ data: { accessToken: "access-novo" } });
       }
       const token = PdvTokenStorage.getAccessToken();
-      return token === "access-novo" ? jsonResponse({ ok: true }) : jsonResponse({}, 401);
+      return token === "access-novo" ? jsonResponse({ data: { ok: true } }) : jsonResponse({}, 401);
     });
     vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
 

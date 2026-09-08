@@ -72,7 +72,7 @@ export function CarrinhoPanel({
             {itens.map((item) => (
               <li key={item.linhaId} className="flex gap-3 rounded-lg border border-border p-2">
                 <div className="size-16 shrink-0 overflow-hidden rounded-md bg-muted">
-                  <ProdutoImagem produto={{ nome: item.nome, imagemUrl: item.imagemUrl }} />
+                  <ProdutoImagem produto={{ nome: item.nome, imagemUrl: item.imagemUrl ?? null }} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{item.nome}</p>

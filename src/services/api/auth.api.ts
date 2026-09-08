@@ -1,8 +1,8 @@
 /**
  * Endpoints reais de autenticação do PDV (mariela-backend):
- *   POST /api/v1/pdv/auth/login
+ *   POST /api/v1/pdv/auth/login   ({ codigo, senha } — LoginPdvDto)
  *   POST /api/v1/pdv/auth/refresh   (executado dentro do PdvApiClient)
- *   POST /api/v1/pdv/auth/logout
+ *   POST /api/v1/pdv/auth/logout  ({ refreshToken } — RefreshPdvDto)
  *   GET  /api/v1/pdv/auth/me
  */
 import { PDV_API_PREFIX } from "@/config/pdv.config";
@@ -13,10 +13,12 @@ import type { PdvLoginPayload, PdvLoginResposta, PdvVendedor } from "@/types/aut
 
 export const authApi: PdvAuthPort = {
   async login(payload: PdvLoginPayload): Promise<PdvVendedor> {
-    const resposta = await PdvApiClient.post<PdvLoginResposta>(
-      `${PDV_API_PREFIX}/auth/login`,
-      payload,
-    );
+    // O backend só aceita `codigo` como credencial — `payload.login` é o
+    // valor digitado pela vendedora na tela (rótulo "Login").
+    const resposta = await PdvApiClient.post<PdvLoginResposta>(`${PDV_API_PREFIX}/auth/login`, {
+      codigo: payload.login,
+      senha: payload.senha,
+    });
     PdvTokenStorage.setTokens(resposta.accessToken, resposta.refreshToken);
     // O vendedor pode não vir no login; nesse caso GET /auth/me é a fonte.
     return resposta.vendedor ?? (await PdvApiClient.get<PdvVendedor>(`${PDV_API_PREFIX}/auth/me`));
@@ -24,7 +26,12 @@ export const authApi: PdvAuthPort = {
 
   async logout(): Promise<void> {
     try {
-      await PdvApiClient.post<void>(`${PDV_API_PREFIX}/auth/logout`);
+      const refreshToken = PdvTokenStorage.getRefreshToken();
+      // RefreshPdvDto exige refreshToken não vazio; sem token local não há o
+      // que revogar no servidor — só a limpeza local (no finally) se aplica.
+      if (refreshToken) {
+        await PdvApiClient.post<void>(`${PDV_API_PREFIX}/auth/logout`, { refreshToken });
+      }
     } finally {
       PdvTokenStorage.clear();
     }

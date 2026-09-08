@@ -1,7 +1,7 @@
 /**
  * Endpoints reais de caixa:
- *   GET  /api/v1/pdv/caixa/atual
- *   POST /api/v1/pdv/caixa/abertura
+ *   GET  /api/v1/pdv/caixa/atual     — { data: null } quando nenhum caixa está aberto.
+ *   POST /api/v1/pdv/caixa/abertura  — corpo { valorInicial, observacao? } (AbrirCaixaPdvDto).
  */
 import { PDV_API_PREFIX } from "@/config/pdv.config";
 import { PdvApiClient } from "./client";
@@ -13,6 +13,9 @@ export const caixaApi: PdvCaixaPort = {
     return PdvApiClient.get<PdvCaixa | null>(`${PDV_API_PREFIX}/caixa/atual`);
   },
   abrir(valorAbertura: number): Promise<PdvCaixa> {
-    return PdvApiClient.post<PdvCaixa>(`${PDV_API_PREFIX}/caixa/abertura`, { valorAbertura });
+    // O DTO do backend chama o campo `valorInicial`, não `valorAbertura`.
+    return PdvApiClient.post<PdvCaixa>(`${PDV_API_PREFIX}/caixa/abertura`, {
+      valorInicial: valorAbertura,
+    });
   },
 };

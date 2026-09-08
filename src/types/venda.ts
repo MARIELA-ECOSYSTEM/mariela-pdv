@@ -14,17 +14,23 @@ export interface PdvPagamentoLinha {
 export type PdvVendaEstado = "rascunho" | "processando" | "em_pagamento" | "concluida" | "erro";
 
 /**
- * Corpo de POST /api/v1/pdv/vendas.
+ * Corpo de POST /api/v1/pdv/vendas (espelha CriarVendaPdvDto).
  * O frontend envia intenção: itens, quantidades, desconto, pagamentos e cliente.
  * NÃO envia preço, total nem troco — o backend é a autoridade sobre valores,
  * estoque e regras de negócio.
+ *
+ * Item espelha exatamente `ItemVendaPdvDto`: `varianteId`/`tamanhoId` são
+ * obrigatórios (nunca fabricados no frontend — vêm do carrinho, que por sua
+ * vez só os aceita de um `PdvProdutoVariante`/`PdvProdutoTamanho` reais).
  */
 export interface PdvVendaPayload {
   clienteId?: string | undefined;
-  desconto: number;
+  /** Nome de campo do backend é `descontoVenda`, não `desconto`. */
+  descontoVenda: number;
   itens: Array<{
     produtoId: string;
-    varianteId?: string | undefined;
+    varianteId: string;
+    tamanhoId: string;
     quantidade: number;
   }>;
   pagamentos: Array<{ forma: string; valor: number }>;
