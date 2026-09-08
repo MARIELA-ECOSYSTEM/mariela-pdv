@@ -194,6 +194,9 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     );
   }
 
+  // ---- Etapa do fluxo (apenas UX; nada de estado da venda é perdido) ----
+  const [etapa, setEtapa] = useState<PdvEtapa>("carrinho");
+
   // ---- Venda ----
   const [conferenciaAberta, setConferenciaAberta] = useState(false);
   const [tentativa, setTentativa] = useState<PdvVendaTentativa | null>(null);
@@ -265,6 +268,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     setDescontoVenda(DESCONTO_ZERO);
     setTentativa(null);
     setConferenciaAberta(false);
+    setEtapa("carrinho");
     buscaRef.current?.focus();
   }
 
