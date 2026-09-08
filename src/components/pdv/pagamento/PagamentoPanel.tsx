@@ -126,6 +126,7 @@ export function PagamentoPanel({
   totaisVenda,
   totais,
   adquirentes,
+  cliente = null,
   enviando,
   onAdicionar,
   onAlterarValor,
