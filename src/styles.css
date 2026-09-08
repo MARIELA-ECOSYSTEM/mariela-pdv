@@ -45,6 +45,7 @@
   --color-ring-offset-background: var(--background);
   --color-plum: var(--plum);
   --color-plum-foreground: var(--plum-foreground);
+  --color-brand: var(--brand);
   --color-lilac: var(--lilac);
   --color-lilac-foreground: var(--lilac-foreground);
   --color-surface: var(--surface);
@@ -71,6 +72,9 @@
 
   --plum: oklch(0.28 0.095 305);
   --plum-foreground: oklch(0.985 0.006 305);
+
+  /* Cor da assinatura MARIELA — legível sobre --card em ambos os temas. */
+  --brand: oklch(0.28 0.095 305);
 
   --primary: oklch(0.45 0.16 302);
   --primary-foreground: oklch(0.99 0.004 305);
@@ -112,6 +116,9 @@
 
   --plum: oklch(0.32 0.1 305);
   --plum-foreground: oklch(0.975 0.008 305);
+
+  /* No escuro a assinatura usa o lilás claro da paleta para ter contraste. */
+  --brand: oklch(0.9 0.045 305);
 
   --primary: oklch(0.68 0.14 300);
   --primary-foreground: oklch(0.17 0.045 305);
