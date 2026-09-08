@@ -370,7 +370,6 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
             />
           )}
 
-
           <p className="shrink-0 border-t border-border px-4 py-2 text-center text-[0.7rem] text-muted-foreground">
             Atalhos: / buscar · Ctrl+Enter avançar · Esc fechar
           </p>

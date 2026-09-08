@@ -65,17 +65,13 @@ export function ClientePanel({
           Cadastrar novo cliente
         </Button>
         <p className="flex items-start gap-1.5 text-[0.7rem] leading-snug text-muted-foreground">
-          <Info className="mt-px size-3.5 shrink-0" />
-          O cadastro de clientes é feito no Backoffice. Enquanto isso, siga a venda como consumidor
-          não identificado.
+          <Info className="mt-px size-3.5 shrink-0" />O cadastro de clientes é feito no Backoffice.
+          Enquanto isso, siga a venda como consumidor não identificado.
         </p>
       </div>
 
       <div className="shrink-0 border-t border-border p-4">
-        <Button
-          className="h-14 w-full text-base tracking-[0.12em]"
-          onClick={onSeguirParaCarrinho}
-        >
+        <Button className="h-14 w-full text-base tracking-[0.12em]" onClick={onSeguirParaCarrinho}>
           {cliente ? "SEGUIR PARA O CARRINHO" : "SEGUIR SEM CLIENTE"}
           <ArrowRight className="size-5" />
         </Button>

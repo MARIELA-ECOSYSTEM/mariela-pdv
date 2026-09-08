@@ -299,7 +299,6 @@ export function PagamentoPanel({
         >
           {enviando ? <Loader2 className="size-5 animate-spin" /> : null}
           CONFERIR VENDA
-
         </Button>
       </div>
     </div>
