@@ -313,23 +313,27 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
             onDescontoVendaChange={setDescontoVenda}
           />
 
-          <PagamentoPanel
-            pagamentos={pagamentos}
-            total={total}
-            totais={pagamentoTotais}
-            onAdicionar={adicionarPagamento}
-            onAlterarValor={(id, texto) =>
-              setPagamentos((atuais) =>
-                atuais.map((p) => (p.id === id ? { ...p, valor: parseValor(texto) } : p)),
-              )
-            }
-            onAlterarParcelas={(id, parcelas) =>
-              setPagamentos((atuais) => atuais.map((p) => (p.id === id ? { ...p, parcelas } : p)))
-            }
-            onRemover={(id) => setPagamentos((atuais) => atuais.filter((p) => p.id !== id))}
-          />
+          {/* Pagamento rola por conta própria: nunca empurra o botão para fora. */}
+          <div className="max-h-[45%] shrink-0 overflow-y-auto">
+            <PagamentoPanel
+              pagamentos={pagamentos}
+              total={total}
+              totais={pagamentoTotais}
+              adquirentes={adquirentes}
+              onAdicionar={adicionarPagamento}
+              onAlterarValor={(id, valor) =>
+                setPagamentos((atuais) => atuais.map((p) => (p.id === id ? { ...p, valor } : p)))
+              }
+              onAlterarParcelas={(id, parcelas) =>
+                setPagamentos((atuais) => atuais.map((p) => (p.id === id ? { ...p, parcelas } : p)))
+              }
+              onAlterarAdquirente={alterarAdquirente}
+              onRemover={(id) => setPagamentos((atuais) => atuais.filter((p) => p.id !== id))}
+            />
+          </div>
 
-          <div className="border-t border-border p-4">
+          <div className="shrink-0 border-t border-border p-4">
+
             <Button
               className="h-14 w-full text-base tracking-[0.12em]"
               disabled={carrinho.itens.length === 0 || tentativa?.estado === "processando"}
