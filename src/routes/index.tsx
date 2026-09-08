@@ -14,11 +14,14 @@ import { ConferenciaDialog } from "@/components/pdv/venda/ConferenciaDialog";
 import { usePdvAuth } from "@/features/auth/PdvAuthProvider";
 import { useCarrinho } from "@/features/carrinho/useCarrinho";
 import { useAtalhos } from "@/features/atalhos/useAtalhos";
-import { parseValor } from "@/lib/format";
+import { useAdquirentes } from "@/features/pagamento/useAdquirentes";
 import { formaEhCredito } from "@/lib/pagamento";
+import { ajustarParcelas, encontrarAdquirente } from "@/lib/adquirente";
+import { arredondarCentavos } from "@/lib/desconto";
 import { calcularTotaisPagamento, calcularTotaisVenda } from "@/lib/venda-totais";
 import { gerarUuid } from "@/lib/uuid";
 import { pdvDataSource } from "@/services/pdv-data-source";
+
 import type { RequestState } from "@/types/api";
 import type { PdvProduto } from "@/types/produto";
 import type { PdvCliente } from "@/types/cliente";
@@ -157,6 +160,8 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
   const total = totais.total;
 
   // ---- Pagamentos ----
+  // Adquirentes vêm de configuração (Backoffice/API), nunca de lista fixa aqui.
+  const { adquirentes } = useAdquirentes();
   const [pagamentos, setPagamentos] = useState<PdvPagamentoLinha[]>([]);
   const pagamentoTotais = useMemo(
     () => calcularTotaisPagamento(pagamentos, total),
@@ -169,11 +174,26 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
       {
         id: gerarUuid(),
         forma,
-        valor: Number(pagamentoTotais.pendente.toFixed(2)),
+        valor: arredondarCentavos(pagamentoTotais.pendente),
         ...(formaEhCredito(forma) ? { parcelas: 1 } : {}),
       },
     ]);
   }
+
+  /** Troca de adquirente reajusta as parcelas para as autorizadas na configuração. */
+  function alterarAdquirente(id: string, adquirenteId: string) {
+    const adquirente = encontrarAdquirente(adquirentes, adquirenteId);
+    setPagamentos((atuais) =>
+      atuais.map((p) => {
+        if (p.id !== id) return p;
+        const parcelas = formaEhCredito(p.forma)
+          ? (ajustarParcelas(adquirente, p.parcelas) ?? 1)
+          : undefined;
+        return { ...p, adquirenteId, ...(parcelas ? { parcelas } : {}) };
+      }),
+    );
+  }
+
 
   // ---- Venda ----
   const [conferenciaAberta, setConferenciaAberta] = useState(false);
