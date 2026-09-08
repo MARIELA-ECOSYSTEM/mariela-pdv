@@ -73,7 +73,10 @@ export function CaixaDialog({
                 className="h-11 text-lg"
               />
             </div>
-            <Button className="h-12 w-full text-base" onClick={() => onAbrirCaixa(parseValor(valor))}>
+            <Button
+              className="h-12 w-full text-base"
+              onClick={() => onAbrirCaixa(parseValor(valor))}
+            >
               ABRIR CAIXA
             </Button>
           </div>

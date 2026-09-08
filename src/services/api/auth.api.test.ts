@@ -51,7 +51,13 @@ describe("authApi.login", () => {
 
     const vendedor = await authApi.login({ login: "VEN-0001", senha: "minhasenha" });
 
-    expect(vendedor).toEqual({ id: "v1", codigo: "VEN-0001", nome: "Ana Paula", foto: null, ativo: true });
+    expect(vendedor).toEqual({
+      id: "v1",
+      codigo: "VEN-0001",
+      nome: "Ana Paula",
+      foto: null,
+      ativo: true,
+    });
     expect(PdvTokenStorage.getAccessToken()).toBe("access-2");
     expect(PdvTokenStorage.getRefreshToken()).toBe("refresh-2");
   });

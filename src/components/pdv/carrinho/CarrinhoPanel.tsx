@@ -45,12 +45,21 @@ export function CarrinhoPanel({
               <p className="truncate text-sm font-medium">{cliente.nome}</p>
               <p className="text-xs text-muted-foreground">{cliente.telefone ?? "Sem telefone"}</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={onRemoverCliente} aria-label="Remover cliente">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onRemoverCliente}
+              aria-label="Remover cliente"
+            >
               <X className="size-4" />
             </Button>
           </div>
         ) : (
-          <Button variant="secondary" className="h-11 w-full justify-start" onClick={onAbrirCliente}>
+          <Button
+            variant="secondary"
+            className="h-11 w-full justify-start"
+            onClick={onAbrirCliente}
+          >
             <UserRound className="size-4" />
             Selecionar cliente
           </Button>
