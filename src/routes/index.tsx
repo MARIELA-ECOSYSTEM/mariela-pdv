@@ -344,6 +344,20 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
 
       <CaixaDialog estado={caixa} onAbrirCaixa={abrirCaixa} />
 
+      {/* Conferência antes do POST — "Voltar e editar" preserva toda a venda. */}
+      <ConferenciaDialog
+        aberto={conferenciaAberta}
+        vendedorNome={vendedorNome}
+        cliente={cliente}
+        itens={carrinho.itens}
+        totais={totais}
+        pagamentos={pagamentos}
+        pagamentoTotais={pagamentoTotais}
+        enviando={tentativa?.estado === "processando"}
+        onVoltar={() => setConferenciaAberta(false)}
+        onConfirmar={confirmarVenda}
+      />
+
       <VendaDialog
         tentativa={tentativa}
         onFechar={() => setTentativa(null)}
