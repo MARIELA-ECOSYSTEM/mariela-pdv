@@ -313,26 +313,33 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         </div>
 
         <aside className="surface-panel flex min-h-0 flex-col overflow-hidden">
-          <CarrinhoPanel
-            itens={carrinho.itens}
+          <EtapaIndicador etapa={etapa} />
+
+          {/* Cliente: contexto da venda, fora do carrinho e do pagamento. */}
+          <ClienteResumo
             cliente={cliente}
-            descontoVenda={descontoVenda}
-            totais={totais}
             onAbrirCliente={() => setClienteAberto(true)}
             onRemoverCliente={() => setCliente(null)}
-            onRemoverItem={carrinho.remover}
-            onAlterarQuantidade={carrinho.alterarQuantidade}
-            onAlterarDescontoItem={carrinho.alterarDesconto}
-            onDescontoVendaChange={setDescontoVenda}
           />
 
-          {/* Pagamento rola por conta própria: nunca empurra o botão para fora. */}
-          <div className="max-h-[45%] shrink-0 overflow-y-auto">
+          {etapa === "carrinho" ? (
+            <CarrinhoPanel
+              itens={carrinho.itens}
+              descontoVenda={descontoVenda}
+              totais={totais}
+              onRemoverItem={carrinho.remover}
+              onAlterarQuantidade={carrinho.alterarQuantidade}
+              onAlterarDescontoItem={carrinho.alterarDesconto}
+              onDescontoVendaChange={setDescontoVenda}
+              onSeguirParaPagamento={() => setEtapa("pagamento")}
+            />
+          ) : (
             <PagamentoPanel
               pagamentos={pagamentos}
-              total={total}
+              totaisVenda={totais}
               totais={pagamentoTotais}
               adquirentes={adquirentes}
+              enviando={tentativa?.estado === "processando"}
               onAdicionar={adicionarPagamento}
               onAlterarValor={(id, valor) =>
                 setPagamentos((atuais) => atuais.map((p) => (p.id === id ? { ...p, valor } : p)))
@@ -342,24 +349,14 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
               }
               onAlterarAdquirente={alterarAdquirente}
               onRemover={(id) => setPagamentos((atuais) => atuais.filter((p) => p.id !== id))}
+              onVoltar={() => setEtapa("carrinho")}
+              onConferir={abrirConferencia}
             />
-          </div>
+          )}
 
-          <div className="shrink-0 border-t border-border p-4">
-            <Button
-              className="h-14 w-full text-base tracking-[0.12em]"
-              disabled={carrinho.itens.length === 0 || tentativa?.estado === "processando"}
-              onClick={abrirConferencia}
-            >
-              {tentativa?.estado === "processando" ? (
-                <Loader2 className="size-5 animate-spin" />
-              ) : null}
-              FINALIZAR VENDA
-            </Button>
-            <p className="mt-2 text-center text-[0.7rem] text-muted-foreground">
-              Atalhos: / buscar · Ctrl+Enter finalizar · Esc fechar
-            </p>
-          </div>
+          <p className="shrink-0 border-t border-border px-4 py-2 text-center text-[0.7rem] text-muted-foreground">
+            Atalhos: / buscar · Ctrl+Enter avançar · Esc fechar
+          </p>
         </aside>
       </div>
 
