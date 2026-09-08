@@ -20,8 +20,9 @@ export function formaEhCartao(forma: string): boolean {
 }
 
 /**
- * Limite de parcelas usado apenas para montar o seletor enquanto a
- * configuração da adquirente não chega pela API.
+ * NÃO é regra de negócio: as parcelas oferecidas ao operador vêm sempre da
+ * configuração da adquirente (ver src/lib/adquirente.ts). Este helper existe
+ * apenas como utilitário genérico de lista e não é usado no fluxo de crédito.
  */
 export const MAX_PARCELAS_PADRAO = 12;
 

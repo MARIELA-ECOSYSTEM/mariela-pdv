@@ -55,3 +55,29 @@ describe("troca de modalidade", () => {
     });
   });
 });
+
+describe("descontos com casas decimais", () => {
+  it("10,5% de R$ 200 equivale a R$ 21,00", () => {
+    expect(descontoEmValor(200, { tipo: "percentual", valor: 10.5 })).toBe(21);
+  });
+
+  it("R$ 21,00 de R$ 200 equivale a 10,5%", () => {
+    expect(descontoEmPercentual(200, { tipo: "monetario", valor: 21 })).toBe(10.5);
+  });
+
+  it("aceita valores monetários com centavos", () => {
+    expect(limitarDesconto(100, { tipo: "monetario", valor: 20.5 }).valor).toBe(20.5);
+    expect(descontoEmValor(100, { tipo: "monetario", valor: 20.5 })).toBe(20.5);
+  });
+
+  it("preserva decimais na troca de modalidade", () => {
+    expect(converterModalidade(200, { tipo: "percentual", valor: 10.5 }, "monetario")).toEqual({
+      tipo: "monetario",
+      valor: 21,
+    });
+    expect(converterModalidade(100, { tipo: "monetario", valor: 20.5 }, "percentual")).toEqual({
+      tipo: "percentual",
+      valor: 20.5,
+    });
+  });
+});

@@ -1,9 +1,12 @@
 import { Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { formatarDecimalBr } from "@/lib/decimal";
 import { formatMoeda } from "@/lib/format";
 import { formaEhCredito } from "@/lib/pagamento";
+import { encontrarAdquirente, valorParcela } from "@/lib/adquirente";
 import { totaisDoItem, type PdvPagamentoTotais, type PdvVendaTotais } from "@/lib/venda-totais";
+import type { PdvAdquirente } from "@/types/adquirente";
 import type { PdvItemCarrinho } from "@/types/carrinho";
 import type { PdvCliente } from "@/types/cliente";
 import type { PdvPagamentoLinha } from "@/types/venda";
@@ -44,6 +47,7 @@ export function ConferenciaDialog({
   totais,
   pagamentos,
   pagamentoTotais,
+  adquirentes = [],
   enviando,
   onVoltar,
   onConfirmar,
@@ -55,6 +59,7 @@ export function ConferenciaDialog({
   totais: PdvVendaTotais;
   pagamentos: PdvPagamentoLinha[];
   pagamentoTotais: PdvPagamentoTotais;
+  adquirentes?: PdvAdquirente[];
   enviando: boolean;
   onVoltar: () => void;
   onConfirmar: () => void;
@@ -148,21 +153,27 @@ export function ConferenciaDialog({
               </p>
             ) : (
               <ul className="divide-y divide-border rounded-lg border border-border">
-                {pagamentos.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between gap-3 p-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{p.forma}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formaEhCredito(p.forma) && p.parcelas
-                          ? `${p.parcelas}x de ${formatMoeda(p.valor / p.parcelas)}`
-                          : "À vista"}
-                        {p.tarifa != null ? ` · Tarifa ${formatMoeda(p.tarifa)}` : ""}
-                        {p.valorLiquido != null ? ` · Líquido ${formatMoeda(p.valorLiquido)}` : ""}
-                      </p>
-                    </div>
-                    <span className="text-sm font-semibold">{formatMoeda(p.valor)}</span>
-                  </li>
-                ))}
+                {pagamentos.map((p) => {
+                  const adquirente = encontrarAdquirente(adquirentes, p.adquirenteId);
+                  return (
+                    <li key={p.id} className="flex items-center justify-between gap-3 p-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{p.forma}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {adquirente ? `${adquirente.nome} · ` : ""}
+                          {formaEhCredito(p.forma) && p.parcelas && p.parcelas > 1
+                            ? `${p.parcelas}x de ${formatMoeda(valorParcela(p.valor, p.parcelas))}`
+                            : "À vista"}
+                          {p.tarifa != null ? ` · Tarifa ${formatMoeda(p.tarifa)}` : ""}
+                          {p.valorLiquido != null
+                            ? ` · Líquido ${formatMoeda(p.valorLiquido)}`
+                            : ""}
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold">{formatMoeda(p.valor)}</span>
+                    </li>
+                  );
+                })}
               </ul>
             )}
             <div className="space-y-2 rounded-lg border border-border bg-surface p-3">

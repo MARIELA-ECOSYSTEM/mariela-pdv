@@ -1,13 +1,15 @@
-import { Input } from "@/components/ui/input";
+import { CampoDecimal } from "@/components/pdv/comum/CampoDecimal";
 import { cn } from "@/lib/utils";
 import { converterModalidade, descontoEmPercentual, descontoEmValor } from "@/lib/desconto";
+import { formatarDecimalBr } from "@/lib/decimal";
 import { formatMoeda } from "@/lib/format";
 import type { PdvDesconto, PdvDescontoTipo } from "@/types/desconto";
 
 /**
  * Campo único de desconto com seletor de modalidade (% ou R$) e equivalência
- * imediata. O frontend só calcula a equivalência para feedback — o backend
- * continua sendo a autoridade do desconto aplicado na venda.
+ * imediata. Aceita casas decimais ("10,5%", "R$ 20,50"). O frontend só calcula a
+ * equivalência para feedback — o backend continua sendo a autoridade do desconto
+ * aplicado na venda.
  */
 export function DescontoInput({
   id,
@@ -27,10 +29,7 @@ export function DescontoInput({
   const emValor = descontoEmValor(base, desconto);
   const emPercentual = descontoEmPercentual(base, desconto);
 
-  function digitar(texto: string) {
-    // Somente entrada numérica válida, sem negativos.
-    const limpo = texto.replace(/[^\d,.]/g, "").replace(".", ",");
-    const numero = Number.parseFloat(limpo.replace(",", ".")) || 0;
+  function digitar(numero: number) {
     const limite = desconto.tipo === "percentual" ? 100 : base;
     onChange({ tipo: desconto.tipo, valor: Math.max(0, Math.min(numero, limite)) });
   }
@@ -42,13 +41,12 @@ export function DescontoInput({
   return (
     <div className={cn("space-y-1", className)}>
       <div className="flex items-center gap-1">
-        <Input
+        <CampoDecimal
           id={id}
-          inputMode="decimal"
+          valor={desconto.valor}
+          onChange={digitar}
           placeholder="0"
-          value={desconto.valor ? String(desconto.valor).replace(".", ",") : ""}
-          onChange={(e) => digitar(e.target.value)}
-          className={cn("bg-card text-right", compacto ? "h-8 w-20 text-xs" : "h-9 w-24")}
+          className={cn("bg-card", compacto ? "h-8 w-20 text-xs" : "h-9 w-24")}
         />
         <div className="flex overflow-hidden rounded-md border border-border">
           {(["percentual", "monetario"] as const).map((tipo) => (
@@ -79,7 +77,7 @@ export function DescontoInput({
         >
           {desconto.tipo === "percentual"
             ? `Equivale a ${formatMoeda(emValor)}`
-            : `Equivale a ${String(emPercentual).replace(".", ",")}%`}
+            : `Equivale a ${formatarDecimalBr(emPercentual)}%`}
         </p>
       )}
     </div>

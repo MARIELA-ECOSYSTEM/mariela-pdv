@@ -17,6 +17,12 @@ export interface PdvPagamentoLinha {
   valor: number;
   /** Quantidade de parcelas no crédito (1 quando à vista). */
   parcelas?: number | undefined;
+  /**
+   * Adquirente (maquininha) escolhida pelo operador. A lista de adquirentes é
+   * configuração do Backoffice — o frontend não mantém lista fixa.
+   */
+  adquirenteId?: string | undefined;
+
   /** Tarifa da maquininha informada pelo backend — nunca calculada aqui. */
   tarifa?: number | null | undefined;
   /** Valor líquido informado pelo backend — nunca calculado aqui. */
