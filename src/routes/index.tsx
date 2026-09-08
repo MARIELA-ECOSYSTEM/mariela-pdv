@@ -14,6 +14,7 @@ import { usePdvAuth } from "@/features/auth/PdvAuthProvider";
 import { useCarrinho } from "@/features/carrinho/useCarrinho";
 import { useAtalhos } from "@/features/atalhos/useAtalhos";
 import { parseValor } from "@/lib/format";
+import { gerarUuid } from "@/lib/uuid";
 import { pdvDataSource } from "@/services/pdv-data-source";
 import type { RequestState } from "@/types/api";
 import type { PdvProduto } from "@/types/produto";
@@ -156,7 +157,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
   function adicionarPagamento(forma: string) {
     setPagamentos((atuais) => [
       ...atuais,
-      { id: crypto.randomUUID(), forma, valor: Number(restante.toFixed(2)) },
+      { id: gerarUuid(), forma, valor: Number(restante.toFixed(2)) },
     ]);
   }
 
@@ -209,7 +210,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
 
   function finalizarVenda() {
     if (carrinho.itens.length === 0 || tentativa?.estado === "processando") return;
-    enviarVenda(crypto.randomUUID());
+    enviarVenda(gerarUuid());
   }
 
   function novaVenda() {
