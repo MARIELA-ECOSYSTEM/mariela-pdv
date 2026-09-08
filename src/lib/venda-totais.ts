@@ -83,11 +83,9 @@ export function calcularTotaisPagamento(
   const recebido = arredondarCentavos(pagamentos.reduce((soma, p) => soma + (p.valor || 0), 0));
   const pendente = arredondarCentavos(Math.max(0, total - recebido));
   const troco = arredondarCentavos(Math.max(0, recebido - total));
-  const tarifaTotal = arredondarCentavos(
-    pagamentos.reduce((soma, p) => soma + (p.tarifa ?? 0), 0),
-  );
+  const tarifaTotal = arredondarCentavos(pagamentos.reduce((soma, p) => soma + (p.tarifa ?? 0), 0));
   const liquidoTotal = arredondarCentavos(
-    pagamentos.reduce((soma, p) => soma + (p.valorLiquido ?? p.valor || 0), 0),
+    pagamentos.reduce((soma, p) => soma + ((p.valorLiquido ?? p.valor) || 0), 0),
   );
   const situacao: PdvSituacaoPagamento =
     pendente <= 0.001 && recebido > 0 ? "pago" : recebido > 0 ? "parcial" : "pendente";

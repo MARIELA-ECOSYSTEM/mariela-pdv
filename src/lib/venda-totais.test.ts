@@ -51,10 +51,7 @@ describe("desconto do subtotal", () => {
 
   it("combina desconto de item e desconto da venda sem substituir um pelo outro", () => {
     const totais = calcularTotaisVenda(
-      [
-        item({ linhaId: "a", desconto: { tipo: "monetario", valor: 20 } }),
-        item({ linhaId: "b" }),
-      ],
+      [item({ linhaId: "a", desconto: { tipo: "monetario", valor: 20 } }), item({ linhaId: "b" })],
       { tipo: "percentual", valor: 10 },
     );
     expect(totais.subtotalBruto).toBe(200);

@@ -304,9 +304,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
               )
             }
             onAlterarParcelas={(id, parcelas) =>
-              setPagamentos((atuais) =>
-                atuais.map((p) => (p.id === id ? { ...p, parcelas } : p)),
-              )
+              setPagamentos((atuais) => atuais.map((p) => (p.id === id ? { ...p, parcelas } : p)))
             }
             onRemover={(id) => setPagamentos((atuais) => atuais.filter((p) => p.id !== id))}
           />

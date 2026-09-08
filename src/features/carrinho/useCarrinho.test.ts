@@ -101,9 +101,7 @@ describe("useCarrinho", () => {
   it("alterarDesconto aplica desconto do item e reflete nos totais do carrinho", () => {
     hook = montarHook();
     act(() => hook!.atual.adicionar(item({ precoUnitario: 100 })));
-    act(() =>
-      hook!.atual.alterarDesconto(item().linhaId, { tipo: "percentual", valor: 10 }),
-    );
+    act(() => hook!.atual.alterarDesconto(item().linhaId, { tipo: "percentual", valor: 10 }));
 
     expect(hook.atual.itens[0]?.desconto).toEqual({ tipo: "percentual", valor: 10 });
     expect(hook.atual.subtotal).toBe(100);

@@ -71,7 +71,12 @@ export function DescontoInput({
         </div>
       </div>
       {desconto.valor > 0 && (
-        <p className={cn("text-right text-muted-foreground", compacto ? "text-[0.65rem]" : "text-xs")}>
+        <p
+          className={cn(
+            "text-right text-muted-foreground",
+            compacto ? "text-[0.65rem]" : "text-xs",
+          )}
+        >
           {desconto.tipo === "percentual"
             ? `Equivale a ${formatMoeda(emValor)}`
             : `Equivale a ${String(emPercentual).replace(".", ",")}%`}
