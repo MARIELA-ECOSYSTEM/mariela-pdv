@@ -314,16 +314,25 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         </div>
 
         <aside className="surface-panel flex min-h-0 flex-col overflow-hidden">
-          <EtapaIndicador etapa={etapa} />
+          <EtapaIndicador etapa={etapa} onIrPara={setEtapa} />
 
-          {/* Cliente: contexto da venda, fora do carrinho e do pagamento. */}
-          <ClienteResumo
-            cliente={cliente}
-            onAbrirCliente={() => setClienteAberto(true)}
-            onRemoverCliente={() => setCliente(null)}
-          />
+          {/* Cliente compacto como contexto permanente nas etapas 2 e 3. */}
+          {etapa !== "cliente" && (
+            <ClienteResumo
+              cliente={cliente}
+              onAbrirCliente={() => setEtapa("cliente")}
+              onRemoverCliente={() => setCliente(null)}
+            />
+          )}
 
-          {etapa === "carrinho" ? (
+          {etapa === "cliente" ? (
+            <ClientePanel
+              cliente={cliente}
+              onSelecionar={setCliente}
+              onRemover={() => setCliente(null)}
+              onSeguirParaCarrinho={() => setEtapa("carrinho")}
+            />
+          ) : etapa === "carrinho" ? (
             <CarrinhoPanel
               itens={carrinho.itens}
               descontoVenda={descontoVenda}
@@ -340,6 +349,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
               totaisVenda={totais}
               totais={pagamentoTotais}
               adquirentes={adquirentes}
+              cliente={cliente}
               enviando={tentativa?.estado === "processando"}
               onAdicionar={adicionarPagamento}
               onAlterarValor={(id, valor) =>
@@ -354,6 +364,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
               onConferir={abrirConferencia}
             />
           )}
+
 
           <p className="shrink-0 border-t border-border px-4 py-2 text-center text-[0.7rem] text-muted-foreground">
             Atalhos: / buscar · Ctrl+Enter avançar · Esc fechar
