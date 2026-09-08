@@ -1,12 +1,16 @@
 import { Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { formatarDecimalBr } from "@/lib/decimal";
 import { formatMoeda } from "@/lib/format";
 import { formaEhCredito } from "@/lib/pagamento";
+import { encontrarAdquirente, valorParcela } from "@/lib/adquirente";
 import { totaisDoItem, type PdvPagamentoTotais, type PdvVendaTotais } from "@/lib/venda-totais";
+import type { PdvAdquirente } from "@/types/adquirente";
 import type { PdvItemCarrinho } from "@/types/carrinho";
 import type { PdvCliente } from "@/types/cliente";
 import type { PdvPagamentoLinha } from "@/types/venda";
+
 
 const SITUACAO = {
   pago: { rotulo: "PAGO", classe: "bg-success/15 text-success" },
@@ -44,6 +48,7 @@ export function ConferenciaDialog({
   totais,
   pagamentos,
   pagamentoTotais,
+  adquirentes = [],
   enviando,
   onVoltar,
   onConfirmar,
@@ -55,10 +60,12 @@ export function ConferenciaDialog({
   totais: PdvVendaTotais;
   pagamentos: PdvPagamentoLinha[];
   pagamentoTotais: PdvPagamentoTotais;
+  adquirentes?: PdvAdquirente[];
   enviando: boolean;
   onVoltar: () => void;
   onConfirmar: () => void;
 }) {
+
   const situacao = SITUACAO[pagamentoTotais.situacao];
 
   return (
