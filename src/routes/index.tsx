@@ -255,6 +255,16 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     setConferenciaAberta(true);
   }
 
+  /** Ctrl+Enter avança no fluxo: carrinho → pagamento → conferência. */
+  function avancarFluxo() {
+    if (carrinho.itens.length === 0) return;
+    if (etapa === "carrinho") {
+      setEtapa("pagamento");
+      return;
+    }
+    abrirConferencia();
+  }
+
   /** Confirmação definitiva: nova venda = nova idempotencyKey. */
   function confirmarVenda() {
     if (tentativa?.estado === "processando") return;
@@ -275,10 +285,10 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
   const atalhos = useMemo(
     () => [
       { tecla: "/", acao: () => buscaRef.current?.focus() },
-      { tecla: "Enter", ctrl: true, acao: abrirConferencia },
+      { tecla: "Enter", ctrl: true, acao: avancarFluxo },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [carrinho.itens.length, total, tentativa?.estado],
+    [carrinho.itens.length, total, tentativa?.estado, etapa],
   );
   useAtalhos(atalhos, caixa === "aberto");
 
