@@ -7,6 +7,7 @@ import { ProdutoDialog } from "@/components/pdv/produto/ProdutoDialog";
 import { CarrinhoPanel } from "@/components/pdv/carrinho/CarrinhoPanel";
 import { ClienteDialog } from "@/components/pdv/cliente/ClienteDialog";
 import { ClienteResumo } from "@/components/pdv/cliente/ClienteResumo";
+import { ClientePanel } from "@/components/pdv/cliente/ClientePanel";
 import { EtapaIndicador, type PdvEtapa } from "@/components/pdv/fluxo/EtapaIndicador";
 import { PagamentoPanel } from "@/components/pdv/pagamento/PagamentoPanel";
 import { CaixaDialog } from "@/components/pdv/caixa/CaixaDialog";
@@ -258,6 +259,10 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
 
   /** Ctrl+Enter avança no fluxo: carrinho → pagamento → conferência. */
   function avancarFluxo() {
+    if (etapa === "cliente") {
+      setEtapa("carrinho");
+      return;
+    }
     if (carrinho.itens.length === 0) return;
     if (etapa === "carrinho") {
       setEtapa("pagamento");
@@ -314,16 +319,25 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         </div>
 
         <aside className="surface-panel flex min-h-0 flex-col overflow-hidden">
-          <EtapaIndicador etapa={etapa} />
+          <EtapaIndicador etapa={etapa} onIrPara={setEtapa} />
 
-          {/* Cliente: contexto da venda, fora do carrinho e do pagamento. */}
-          <ClienteResumo
-            cliente={cliente}
-            onAbrirCliente={() => setClienteAberto(true)}
-            onRemoverCliente={() => setCliente(null)}
-          />
+          {/* Cliente compacto como contexto permanente nas etapas 2 e 3. */}
+          {etapa !== "cliente" && (
+            <ClienteResumo
+              cliente={cliente}
+              onAbrirCliente={() => setEtapa("cliente")}
+              onRemoverCliente={() => setCliente(null)}
+            />
+          )}
 
-          {etapa === "carrinho" ? (
+          {etapa === "cliente" ? (
+            <ClientePanel
+              cliente={cliente}
+              onSelecionar={setCliente}
+              onRemover={() => setCliente(null)}
+              onSeguirParaCarrinho={() => setEtapa("carrinho")}
+            />
+          ) : etapa === "carrinho" ? (
             <CarrinhoPanel
               itens={carrinho.itens}
               descontoVenda={descontoVenda}
@@ -340,6 +354,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
               totaisVenda={totais}
               totais={pagamentoTotais}
               adquirentes={adquirentes}
+              cliente={cliente}
               enviando={tentativa?.estado === "processando"}
               onAdicionar={adicionarPagamento}
               onAlterarValor={(id, valor) =>

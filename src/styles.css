@@ -118,7 +118,7 @@
   --plum-foreground: oklch(0.975 0.008 305);
 
   /* No escuro a assinatura usa o lilás claro da paleta para ter contraste. */
-  --brand: oklch(0.9 0.045 305);
+  --brand: oklch(0.95 0.035 305);
 
   --primary: oklch(0.68 0.14 300);
   --primary-foreground: oklch(0.17 0.045 305);

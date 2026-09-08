@@ -14,6 +14,7 @@ import { MOCK_FORMAS_PAGAMENTO } from "@/data/mock.pdv";
 import type { PdvPagamentoTotais, PdvVendaTotais } from "@/lib/venda-totais";
 import type { PdvAdquirente } from "@/types/adquirente";
 import type { PdvPagamentoLinha } from "@/types/venda";
+import type { PdvCliente } from "@/types/cliente";
 
 const SELECT = "h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground";
 
@@ -126,6 +127,7 @@ export function PagamentoPanel({
   totaisVenda,
   totais,
   adquirentes,
+  cliente = null,
   enviando,
   onAdicionar,
   onAlterarValor,
@@ -139,6 +141,7 @@ export function PagamentoPanel({
   totaisVenda: PdvVendaTotais;
   totais: PdvPagamentoTotais;
   adquirentes: PdvAdquirente[];
+  cliente?: PdvCliente | null;
   enviando: boolean;
   onAdicionar: (forma: string) => void;
   onAlterarValor: (id: string, valor: number) => void;
@@ -267,6 +270,11 @@ export function PagamentoPanel({
             {formatMoeda(totais.pendente)}
           </span>
         </div>
+        {totais.pendente > 0.001 && (
+          <p className="text-[0.7rem] leading-snug text-muted-foreground">
+            Saldo em aberto {cliente ? `para ${cliente.nome}` : "sem cliente associado"}.
+          </p>
+        )}
         {totais.troco > 0.001 && (
           <div className="flex items-center justify-between rounded-lg bg-accent px-3 py-2 text-sm">
             <span className="font-medium text-accent-foreground">Troco</span>
@@ -290,7 +298,7 @@ export function PagamentoPanel({
           onClick={onConferir}
         >
           {enviando ? <Loader2 className="size-5 animate-spin" /> : null}
-          FINALIZAR VENDA
+          CONFERIR VENDA
         </Button>
       </div>
     </div>
