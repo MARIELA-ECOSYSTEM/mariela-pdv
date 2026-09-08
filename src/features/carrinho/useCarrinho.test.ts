@@ -97,4 +97,26 @@ describe("useCarrinho", () => {
 
     expect(hook.atual.itens).toHaveLength(0);
   });
+
+  it("alterarDesconto aplica desconto do item e reflete nos totais do carrinho", () => {
+    hook = montarHook();
+    act(() => hook!.atual.adicionar(item({ precoUnitario: 100 })));
+    act(() =>
+      hook!.atual.alterarDesconto(item().linhaId, { tipo: "percentual", valor: 10 }),
+    );
+
+    expect(hook.atual.itens[0]?.desconto).toEqual({ tipo: "percentual", valor: 10 });
+    expect(hook.atual.subtotal).toBe(100);
+    expect(hook.atual.descontoItens).toBe(10);
+    expect(hook.atual.subtotalAposItens).toBe(90);
+  });
+
+  it("desconto monetário do item nunca passa do valor da linha", () => {
+    hook = montarHook();
+    act(() => hook!.atual.adicionar(item({ precoUnitario: 100 })));
+    act(() => hook!.atual.alterarDesconto(item().linhaId, { tipo: "monetario", valor: 500 }));
+
+    expect(hook.atual.itens[0]?.desconto?.valor).toBe(100);
+    expect(hook.atual.subtotalAposItens).toBe(0);
+  });
 });
