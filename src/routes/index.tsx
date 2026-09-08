@@ -194,7 +194,6 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     );
   }
 
-
   // ---- Venda ----
   const [conferenciaAberta, setConferenciaAberta] = useState(false);
   const [tentativa, setTentativa] = useState<PdvVendaTentativa | null>(null);
@@ -333,7 +332,6 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
           </div>
 
           <div className="shrink-0 border-t border-border p-4">
-
             <Button
               className="h-14 w-full text-base tracking-[0.12em]"
               disabled={carrinho.itens.length === 0 || tentativa?.estado === "processando"}

@@ -11,7 +11,6 @@ import type { PdvItemCarrinho } from "@/types/carrinho";
 import type { PdvCliente } from "@/types/cliente";
 import type { PdvPagamentoLinha } from "@/types/venda";
 
-
 const SITUACAO = {
   pago: { rotulo: "PAGO", classe: "bg-success/15 text-success" },
   parcial: { rotulo: "PAGAMENTO PARCIAL", classe: "bg-primary/15 text-primary" },
@@ -65,7 +64,6 @@ export function ConferenciaDialog({
   onVoltar: () => void;
   onConfirmar: () => void;
 }) {
-
   const situacao = SITUACAO[pagamentoTotais.situacao];
 
   return (
@@ -167,7 +165,9 @@ export function ConferenciaDialog({
                             ? `${p.parcelas}x de ${formatMoeda(valorParcela(p.valor, p.parcelas))}`
                             : "À vista"}
                           {p.tarifa != null ? ` · Tarifa ${formatMoeda(p.tarifa)}` : ""}
-                          {p.valorLiquido != null ? ` · Líquido ${formatMoeda(p.valorLiquido)}` : ""}
+                          {p.valorLiquido != null
+                            ? ` · Líquido ${formatMoeda(p.valorLiquido)}`
+                            : ""}
                         </p>
                       </div>
                       <span className="text-sm font-semibold">{formatMoeda(p.valor)}</span>
@@ -175,7 +175,6 @@ export function ConferenciaDialog({
                   );
                 })}
               </ul>
-
             )}
             <div className="space-y-2 rounded-lg border border-border bg-surface p-3">
               <Linha rotulo="Total recebido" valor={pagamentoTotais.recebido} destaque />

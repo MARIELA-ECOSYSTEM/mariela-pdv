@@ -45,12 +45,16 @@ function ResumoCartao({
   );
   const tarifa = tarifaApi ?? tarifaConfig;
   const liquido =
-    pagamento.valorLiquido ?? (tarifa != null ? arredondarCentavos(pagamento.valor - tarifa) : null);
+    pagamento.valorLiquido ??
+    (tarifa != null ? arredondarCentavos(pagamento.valor - tarifa) : null);
 
   return (
     <div className="space-y-1.5 rounded-md bg-surface/60 p-2">
       <div className="flex items-center justify-between gap-2">
-        <label htmlFor={`adquirente-${pagamento.id}`} className="text-[0.7rem] text-muted-foreground">
+        <label
+          htmlFor={`adquirente-${pagamento.id}`}
+          className="text-[0.7rem] text-muted-foreground"
+        >
           Adquirente
         </label>
         <select
@@ -70,7 +74,10 @@ function ResumoCartao({
 
       {credito && (
         <div className="flex items-center justify-between gap-2">
-          <label htmlFor={`parcelas-${pagamento.id}`} className="text-[0.7rem] text-muted-foreground">
+          <label
+            htmlFor={`parcelas-${pagamento.id}`}
+            className="text-[0.7rem] text-muted-foreground"
+          >
             Parcelamento
           </label>
           {permitidas.length === 0 ? (

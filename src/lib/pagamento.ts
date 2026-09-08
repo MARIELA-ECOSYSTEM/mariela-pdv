@@ -30,4 +30,3 @@ export function opcoesParcelas(maximo = MAX_PARCELAS_PADRAO): number[] {
   const limite = Math.max(1, Math.floor(maximo));
   return Array.from({ length: limite }, (_, i) => i + 1);
 }
-
