@@ -375,6 +375,8 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         totais={totais}
         pagamentos={pagamentos}
         pagamentoTotais={pagamentoTotais}
+        adquirentes={adquirentes}
+
         enviando={tentativa?.estado === "processando"}
         onVoltar={() => setConferenciaAberta(false)}
         onConfirmar={confirmarVenda}
