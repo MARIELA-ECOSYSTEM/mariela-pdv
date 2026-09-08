@@ -8,6 +8,8 @@
  * no frontend. Os demais campos são só apresentação (rótulo, foto, preço
  * exibido) e nunca substituem o que o backend recalcula na venda.
  */
+import type { PdvDesconto } from "./desconto";
+
 export interface PdvItemCarrinho {
   /** Chave local do item — produto + variante + tamanho (única no carrinho). */
   linhaId: string;
