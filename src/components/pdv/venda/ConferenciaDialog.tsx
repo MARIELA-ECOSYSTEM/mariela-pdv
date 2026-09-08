@@ -148,22 +148,27 @@ export function ConferenciaDialog({
               </p>
             ) : (
               <ul className="divide-y divide-border rounded-lg border border-border">
-                {pagamentos.map((p) => (
-                  <li key={p.id} className="flex items-center justify-between gap-3 p-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{p.forma}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formaEhCredito(p.forma) && p.parcelas
-                          ? `${p.parcelas}x de ${formatMoeda(p.valor / p.parcelas)}`
-                          : "À vista"}
-                        {p.tarifa != null ? ` · Tarifa ${formatMoeda(p.tarifa)}` : ""}
-                        {p.valorLiquido != null ? ` · Líquido ${formatMoeda(p.valorLiquido)}` : ""}
-                      </p>
-                    </div>
-                    <span className="text-sm font-semibold">{formatMoeda(p.valor)}</span>
-                  </li>
-                ))}
+                {pagamentos.map((p) => {
+                  const adquirente = encontrarAdquirente(adquirentes, p.adquirenteId);
+                  return (
+                    <li key={p.id} className="flex items-center justify-between gap-3 p-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{p.forma}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {adquirente ? `${adquirente.nome} · ` : ""}
+                          {formaEhCredito(p.forma) && p.parcelas && p.parcelas > 1
+                            ? `${p.parcelas}x de ${formatMoeda(valorParcela(p.valor, p.parcelas))}`
+                            : "À vista"}
+                          {p.tarifa != null ? ` · Tarifa ${formatMoeda(p.tarifa)}` : ""}
+                          {p.valorLiquido != null ? ` · Líquido ${formatMoeda(p.valorLiquido)}` : ""}
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold">{formatMoeda(p.valor)}</span>
+                    </li>
+                  );
+                })}
               </ul>
+
             )}
             <div className="space-y-2 rounded-lg border border-border bg-surface p-3">
               <Linha rotulo="Total recebido" valor={pagamentoTotais.recebido} destaque />
