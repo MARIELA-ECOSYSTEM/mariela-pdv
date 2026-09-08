@@ -126,26 +126,22 @@ function ItemCarrinho({
 
 export function CarrinhoPanel({
   itens,
-  cliente,
   descontoVenda,
   totais,
-  onAbrirCliente,
-  onRemoverCliente,
   onRemoverItem,
   onAlterarQuantidade,
   onAlterarDescontoItem,
   onDescontoVendaChange,
+  onSeguirParaPagamento,
 }: {
   itens: PdvItemCarrinho[];
-  cliente: PdvCliente | null;
   descontoVenda: PdvDesconto;
   totais: PdvVendaTotais;
-  onAbrirCliente: () => void;
-  onRemoverCliente: () => void;
   onRemoverItem: (linhaId: string) => void;
   onAlterarQuantidade: (linhaId: string, quantidade: number) => void;
   onAlterarDescontoItem: (linhaId: string, desconto: PdvDesconto) => void;
   onDescontoVendaChange: (desconto: PdvDesconto) => void;
+  onSeguirParaPagamento: () => void;
 }) {
   const quantidadeItens = itens.reduce((soma, i) => soma + i.quantidade, 0);
 
