@@ -139,6 +139,7 @@ export function PagamentoPanel({
   totaisVenda: PdvVendaTotais;
   totais: PdvPagamentoTotais;
   adquirentes: PdvAdquirente[];
+  cliente?: PdvCliente | null;
   enviando: boolean;
   onAdicionar: (forma: string) => void;
   onAlterarValor: (id: string, valor: number) => void;
