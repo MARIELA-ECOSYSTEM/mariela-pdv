@@ -30,8 +30,9 @@ describe("gerarUuid", () => {
   });
 
   it("gera chaves distintas entre chamadas (nova operação = nova chave)", () => {
+    const realGetRandomValues = globalThis.crypto.getRandomValues.bind(globalThis.crypto);
     vi.stubGlobal("crypto", {
-      getRandomValues: (arr: Uint8Array) => globalThis.crypto.getRandomValues(arr),
+      getRandomValues: (arr: Uint8Array) => realGetRandomValues(arr),
     });
 
     const a = gerarUuid();
