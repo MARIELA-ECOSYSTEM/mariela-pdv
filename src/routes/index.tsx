@@ -210,7 +210,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
 
   function finalizarVenda() {
     if (carrinho.itens.length === 0 || tentativa?.estado === "processando") return;
-    enviarVenda(crypto.randomUUID());
+    enviarVenda(gerarUuid());
   }
 
   function novaVenda() {
