@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Minus, Percent, Plus, ShoppingBag, Trash2, UserRound, X } from "lucide-react";
+import { ArrowRight, Minus, Percent, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ProdutoImagem } from "@/components/pdv/ProdutoImagem";
@@ -9,7 +9,6 @@ import { formatMoeda } from "@/lib/format";
 import { totaisDoItem, type PdvVendaTotais } from "@/lib/venda-totais";
 import { DESCONTO_ZERO, type PdvDesconto } from "@/types/desconto";
 import type { PdvItemCarrinho } from "@/types/carrinho";
-import type { PdvCliente } from "@/types/cliente";
 
 /**
  * Item compacto: identidade do produto em destaque, dados secundários menores e
@@ -182,8 +181,9 @@ export function CarrinhoPanel({
         )}
       </div>
 
-      {/* Resumo financeiro — sempre visível */}
+      {/* Resumo financeiro — sempre visível, separado da lista */}
       <div className="shrink-0 space-y-2 border-t border-border bg-surface px-4 py-3">
+        <p className="text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">Resumo</p>
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Subtotal</span>
           <span className="font-medium">{formatMoeda(totais.subtotalBruto)}</span>
@@ -224,36 +224,16 @@ export function CarrinhoPanel({
         </div>
       </div>
 
-      {/* Cliente */}
-      <div className="shrink-0 border-t border-border px-4 py-3">
-        {cliente ? (
-          <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-full bg-accent text-accent-foreground">
-              <UserRound className="size-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{cliente.nome}</p>
-              <p className="text-xs text-muted-foreground">{cliente.telefone ?? "Sem telefone"}</p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onRemoverCliente}
-              aria-label="Remover cliente"
-            >
-              <X className="size-4" />
-            </Button>
-          </div>
-        ) : (
-          <Button
-            variant="secondary"
-            className="h-11 w-full justify-start"
-            onClick={onAbrirCliente}
-          >
-            <UserRound className="size-4" />
-            Selecionar cliente
-          </Button>
-        )}
+      {/* Ação principal do carrinho — sempre acessível */}
+      <div className="shrink-0 border-t border-border p-4">
+        <Button
+          className="h-14 w-full text-base tracking-[0.12em]"
+          disabled={itens.length === 0}
+          onClick={onSeguirParaPagamento}
+        >
+          SEGUIR PARA PAGAMENTO
+          <ArrowRight className="size-5" />
+        </Button>
       </div>
     </div>
   );
