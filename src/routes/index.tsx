@@ -10,16 +10,20 @@ import { ClienteDialog } from "@/components/pdv/cliente/ClienteDialog";
 import { PagamentoPanel } from "@/components/pdv/pagamento/PagamentoPanel";
 import { CaixaDialog } from "@/components/pdv/caixa/CaixaDialog";
 import { VendaDialog } from "@/components/pdv/venda/VendaDialog";
+import { ConferenciaDialog } from "@/components/pdv/venda/ConferenciaDialog";
 import { usePdvAuth } from "@/features/auth/PdvAuthProvider";
 import { useCarrinho } from "@/features/carrinho/useCarrinho";
 import { useAtalhos } from "@/features/atalhos/useAtalhos";
 import { parseValor } from "@/lib/format";
+import { formaEhCredito } from "@/lib/pagamento";
+import { calcularTotaisPagamento, calcularTotaisVenda } from "@/lib/venda-totais";
 import { gerarUuid } from "@/lib/uuid";
 import { pdvDataSource } from "@/services/pdv-data-source";
 import type { RequestState } from "@/types/api";
 import type { PdvProduto } from "@/types/produto";
 import type { PdvCliente } from "@/types/cliente";
 import type { PdvCaixaEstado } from "@/types/caixa";
+import { DESCONTO_ZERO, type PdvDesconto } from "@/types/desconto";
 import type { PdvPagamentoLinha, PdvVendaPayload, PdvVendaTentativa } from "@/types/venda";
 
 export const Route = createFileRoute("/")({
