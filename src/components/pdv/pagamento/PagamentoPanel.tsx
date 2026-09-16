@@ -329,9 +329,7 @@ export function PagamentoPanel({
         {totais.fiado > 0.001 && (
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Fiado (a receber)</span>
-            <span className="font-medium text-surface-foreground">
-              {formatMoeda(totais.fiado)}
-            </span>
+            <span className="font-medium text-surface-foreground">{formatMoeda(totais.fiado)}</span>
           </div>
         )}
         <div className="flex items-center justify-between text-sm">

@@ -92,7 +92,6 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     };
   }, []);
 
-
   // ---- Catálogo: GET /api/v1/pdv/produtos (via porta de dados) ----
   const [busca, setBusca] = useState("");
   const [estadoCatalogo, setEstadoCatalogo] = useState<RequestState>("loading");
@@ -298,7 +297,6 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
       <PdvHeader vendedorNome={vendedorNome} caixa={caixa} onSair={onSair} />
       <CaixaAviso estado={caixa} />
 
-
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 lg:grid-cols-[1fr_400px]">
         <div className="flex min-h-0 flex-col">
           <CatalogoProdutos
@@ -384,8 +382,6 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         onFechar={() => setClienteAberto(false)}
         onSelecionar={setCliente}
       />
-
-      
 
       {/* Conferência antes do POST — "Voltar e editar" preserva toda a venda. */}
       <ConferenciaDialog
