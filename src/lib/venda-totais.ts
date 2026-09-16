@@ -61,7 +61,7 @@ export function calcularTotaisVenda(
   };
 }
 
-export type PdvSituacaoPagamento = "pago" | "parcial" | "pendente";
+export type PdvSituacaoPagamento = "pago" | "parcial" | "pendente" | "fiado";
 
 export interface PdvPagamentoTotais {
   recebido: number;
@@ -69,6 +69,10 @@ export interface PdvPagamentoTotais {
   troco: number;
   tarifaTotal: number;
   liquidoTotal: number;
+  /** Soma das linhas em FIADO (valor a receber depois da venda). */
+  fiado: number;
+  /** Valor efetivamente pago no ato (entrada), sem as linhas em FIADO. */
+  pagoAgora: number;
   situacao: PdvSituacaoPagamento;
 }
 
