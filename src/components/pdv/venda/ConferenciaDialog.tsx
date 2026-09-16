@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { formatarDecimalBr } from "@/lib/decimal";
 import { formatMoeda } from "@/lib/format";
-import { formaEhCredito } from "@/lib/pagamento";
+import { formaEhCredito, formaEhFiado } from "@/lib/pagamento";
 import { encontrarAdquirente, valorParcela } from "@/lib/adquirente";
 import { totaisDoItem, type PdvPagamentoTotais, type PdvVendaTotais } from "@/lib/venda-totais";
 import type { PdvAdquirente } from "@/types/adquirente";
@@ -162,9 +162,13 @@ export function ConferenciaDialog({
                         <p className="truncate text-sm font-medium">{p.forma}</p>
                         <p className="text-xs text-muted-foreground">
                           {adquirente ? `${adquirente.nome} · ` : ""}
-                          {formaEhCredito(p.forma) && p.parcelas && p.parcelas > 1
+                          {(formaEhCredito(p.forma) || formaEhFiado(p.forma)) &&
+                          p.parcelas &&
+                          p.parcelas > 1
                             ? `${p.parcelas}x de ${formatMoeda(valorParcela(p.valor, p.parcelas))}`
-                            : "À vista"}
+                            : formaEhFiado(p.forma)
+                              ? "Pagamento posterior"
+                              : "À vista"}
                           {p.tarifa != null ? ` · Tarifa ${formatMoeda(p.tarifa)}` : ""}
                           {p.valorLiquido != null
                             ? ` · Líquido ${formatMoeda(p.valorLiquido)}`
