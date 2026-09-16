@@ -351,6 +351,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
               adquirentes={adquirentes}
               cliente={cliente}
               enviando={tentativa?.estado === "processando"}
+              bloqueado={bloqueado}
               onAdicionar={adicionarPagamento}
               onAlterarValor={(id, valor) =>
                 setPagamentos((atuais) => atuais.map((p) => (p.id === id ? { ...p, valor } : p)))
