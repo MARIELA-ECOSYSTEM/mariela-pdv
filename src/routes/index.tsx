@@ -245,6 +245,8 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
   /** Abre a conferência — nada é enviado ao backend aqui. */
   function abrirConferencia() {
     if (carrinho.itens.length === 0 || tentativa?.estado === "processando") return;
+    // Sem caixa aberto não há finalização: quem abre o caixa é o Backoffice.
+    if (caixa !== "aberto") return;
     setConferenciaAberta(true);
   }
 
@@ -264,7 +266,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
 
   /** Confirmação definitiva: nova venda = nova idempotencyKey. */
   function confirmarVenda() {
-    if (tentativa?.estado === "processando") return;
+    if (tentativa?.estado === "processando" || caixa !== "aberto") return;
     enviarVenda(gerarUuid());
   }
 
@@ -294,6 +296,8 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       <PdvHeader vendedorNome={vendedorNome} caixa={caixa} onSair={onSair} />
+      <CaixaAviso estado={caixa} />
+
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 lg:grid-cols-[1fr_400px]">
         <div className="flex min-h-0 flex-col">
