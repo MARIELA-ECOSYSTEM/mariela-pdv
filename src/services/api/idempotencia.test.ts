@@ -13,7 +13,6 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("POST /api/v1/pdv/vendas", () => {
   const payload = {
-    descontoVenda: 0,
     itens: [{ produtoId: "p1", varianteId: "p1-preto", tamanhoId: "p1-preto-m", quantidade: 1 }],
     pagamentos: [{ forma: "PIX", valor: 100 }],
   };
@@ -25,7 +24,7 @@ describe("POST /api/v1/pdv/vendas", () => {
     });
   }
 
-  it("envia descontoVenda (não `desconto`) no corpo", async () => {
+  it("sem desconto informado, `descontoVenda` não vai no corpo (campo é opcional no DTO)", async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ id: "v1" }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -33,7 +32,7 @@ describe("POST /api/v1/pdv/vendas", () => {
 
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     const corpo = JSON.parse((init.body as string) ?? "{}") as Record<string, unknown>;
-    expect(corpo["descontoVenda"]).toBe(0);
+    expect(corpo["descontoVenda"]).toBeUndefined();
     expect(corpo["desconto"]).toBeUndefined();
   });
 

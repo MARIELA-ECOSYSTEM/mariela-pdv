@@ -43,16 +43,77 @@ describe("PdvApiClient", () => {
     expect(resultado).toBeNull();
   });
 
-  it("erro HTTP: converte status em PdvHttpError com mensagem operacional", async () => {
+  it("erro HTTP sem message/errors: cai na mensagem operacional genérica", async () => {
+    // O backend real não tem código distinto por cenário de conflito — todo
+    // ApiException.conflict() usa code: "CONFLICT" (ver api.exception.ts).
+    // Sem `message` no corpo, só resta a mensagem genérica por status.
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => jsonResponse({ code: "CAIXA_CONFLITO" }, 409)),
+      vi.fn(async () => jsonResponse({ code: "CONFLICT" }, 409)),
     );
 
     await expect(PdvApiClient.get("/api/v1/pdv/caixa/atual")).rejects.toMatchObject({
       name: "PdvHttpError",
       status: 409,
-      code: "CAIXA_CONFLITO",
+      code: "CONFLICT",
+      message: "Esta operação conflita com o estado atual.",
+    });
+  });
+
+  it("erro HTTP com `message`: repassa o texto específico do backend (P5)", async () => {
+    // Mesmo code "CONFLICT" genérico, mas o backend já escreveu um texto
+    // específico e pronto para o operador — não deve ser trocado pela
+    // mensagem genérica.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ code: "CONFLICT", message: "Já existe um caixa aberto." }, 409)),
+    );
+
+    await expect(PdvApiClient.get("/api/v1/pdv/caixa/abertura")).rejects.toMatchObject({
+      status: 409,
+      message: "Já existe um caixa aberto.",
+    });
+  });
+
+  it("erro HTTP com `errors[0].message`: prefere o erro de campo específico ao `message` genérico", async () => {
+    // Caso real: estoque insuficiente é 400 VALIDATION_ERROR com message
+    // genérica ("Dados inválidos.") e o texto específico em errors[0].
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse(
+          {
+            code: "VALIDATION_ERROR",
+            message: "Dados inválidos.",
+            errors: [
+              {
+                field: "quantidade",
+                message: "Estoque insuficiente para Vestido (Preto, M). Disponível: 2.",
+              },
+            ],
+          },
+          400,
+        ),
+      ),
+    );
+
+    await expect(PdvApiClient.post("/api/v1/pdv/vendas")).rejects.toMatchObject({
+      status: 400,
+      message: "Estoque insuficiente para Vestido (Preto, M). Disponível: 2.",
+    });
+  });
+
+  it("erro 5xx: NUNCA repassa o `message` do backend, mesmo se vier preenchido", async () => {
+    // Erros de servidor podem vazar detalhe de infraestrutura — o vendedor
+    // sempre vê a mensagem genérica própria, nunca texto interno.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ code: "INTERNAL_ERROR", message: "Cannot read properties of undefined" }, 500)),
+    );
+
+    await expect(PdvApiClient.get("/api/v1/pdv/produtos")).rejects.toMatchObject({
+      status: 500,
+      message: "O sistema está indisponível neste momento. Tente novamente.",
     });
   });
 

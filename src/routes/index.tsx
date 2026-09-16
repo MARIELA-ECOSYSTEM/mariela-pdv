@@ -17,7 +17,7 @@ import { usePdvAuth } from "@/features/auth/PdvAuthProvider";
 import { useCarrinho } from "@/features/carrinho/useCarrinho";
 import { useAtalhos } from "@/features/atalhos/useAtalhos";
 import { useAdquirentes } from "@/features/pagamento/useAdquirentes";
-import { formaEhCredito, formaEhFiado } from "@/lib/pagamento";
+import { formaEhCredito, formaEhFiado, montarPagamentosParaEnvio } from "@/lib/pagamento";
 import { ajustarParcelas, encontrarAdquirente } from "@/lib/adquirente";
 import { arredondarCentavos } from "@/lib/desconto";
 import { calcularTotaisPagamento, calcularTotaisVenda } from "@/lib/venda-totais";
@@ -204,18 +204,22 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
 
     // POST /api/v1/pdv/vendas — o frontend envia apenas intenção.
     // Preço, estoque e total são autoridade do backend; troco não é enviado.
-    // Descontos por item, parcelas e tarifa ainda não têm campo no contrato
-    // atual, então permanecem apenas no estado local até o contrato existir.
+    // A linha local "Fiado" nunca vai em `pagamentos` (ver montarPagamentosParaEnvio).
+    const { pagamentos: pagamentosParaEnvio, totalParcelas } =
+      montarPagamentosParaEnvio(pagamentos);
+
     const payload: PdvVendaPayload = {
       ...(cliente ? { clienteId: cliente.id } : {}),
-      descontoVenda: totais.descontoVenda,
+      descontoVenda: descontoVenda,
       itens: carrinho.itens.map((item) => ({
         produtoId: item.produtoId,
         varianteId: item.varianteId,
         tamanhoId: item.tamanhoId,
         quantidade: item.quantidade,
+        desconto: item.desconto,
       })),
-      pagamentos: pagamentos.map((p) => ({ forma: p.forma, valor: p.valor })),
+      pagamentos: pagamentosParaEnvio,
+      ...(totalParcelas ? { totalParcelas } : {}),
     };
 
     void (async () => {

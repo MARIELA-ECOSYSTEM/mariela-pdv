@@ -47,6 +47,28 @@ function mensagemOperacional(status: number): string {
   return "Não foi possível concluir a operação.";
 }
 
+/**
+ * O backend NÃO tem um código distinto por cenário de conflito/validação
+ * (`ApiException.conflict`/`.validation` sempre usam `code: "CONFLICT"`/
+ * `"VALIDATION_ERROR"` genéricos — confirmado em `common/exceptions/
+ * api.exception.ts`). A informação específica ("Estoque insuficiente para
+ * X. Disponível: N.", "Já existe um caixa aberto.", "Esta idempotencyKey já
+ * foi usada...") vive só no texto: em `errors[0].message` (erros de campo,
+ * ex. estoque) ou em `message` (demais casos). Por isso a estratégia correta
+ * não é mapear código→mensagem (não existe granularidade nos códigos), e sim
+ * repassar o texto que o backend já escreve pronto para o operador — nunca
+ * mascarar com uma frase genérica quando o backend já foi específico.
+ * Erros 5xx são a exceção: preferimos sempre a mensagem genérica própria,
+ * nunca repassar texto de erro interno/infra ao vendedor.
+ */
+function mensagemDoBackend(
+  status: number,
+  corpo: { message?: string; errors?: Array<{ message?: string }> } | undefined,
+): string | undefined {
+  if (status >= 500) return undefined;
+  return corpo?.errors?.[0]?.message ?? corpo?.message;
+}
+
 /** Assinantes avisados quando a sessão é perdida de forma irreversível. */
 type SessaoExpiradaHandler = () => void;
 const ouvintesSessaoExpirada = new Set<SessaoExpiradaHandler>();
@@ -131,13 +153,19 @@ export async function pdvRequest<T>(path: string, options: PdvRequestOptions = {
 
     if (!res.ok) {
       let code: string | undefined;
+      let mensagemEspecifica: string | undefined;
       try {
-        const data = (await res.json()) as { code?: string };
+        const data = (await res.json()) as {
+          code?: string;
+          message?: string;
+          errors?: Array<{ message?: string }>;
+        };
         code = data?.code;
+        mensagemEspecifica = mensagemDoBackend(res.status, data);
       } catch {
         /* resposta sem corpo JSON */
       }
-      throw new PdvHttpError(mensagemOperacional(res.status), res.status, code);
+      throw new PdvHttpError(mensagemEspecifica ?? mensagemOperacional(res.status), res.status, code);
     }
 
     if (res.status === 204) return undefined as T;

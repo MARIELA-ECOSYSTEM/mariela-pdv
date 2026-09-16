@@ -40,18 +40,39 @@ export type PdvVendaEstado = "rascunho" | "processando" | "em_pagamento" | "conc
  * Item espelha exatamente `ItemVendaPdvDto`: `varianteId`/`tamanhoId` são
  * obrigatórios (nunca fabricados no frontend — vêm do carrinho, que por sua
  * vez só os aceita de um `PdvProdutoVariante`/`PdvProdutoTamanho` reais).
+ *
+ * `desconto`/`descontoVenda` usam o vocabulário do frontend (`PdvDesconto`,
+ * tipo "percentual"|"monetario") — a tradução para o formato real do backend
+ * (`{tipo: "percentual"|"valor", valor}`, `desconto-pdv.dto.ts`) acontece em
+ * `services/api/vendas.api.ts`, mesmo padrão de tradução já usado em
+ * `auth.api.ts`/`produtos.api.ts`. Enviar a INTENÇÃO bruta do operador (não
+ * um valor em R$ pré-calculado no frontend) deixa o backend recalcular contra
+ * o preço real dele, na mesma ordem que já usa (bruto do item → desconto do
+ * item → subtotal do item → soma = subtotal da venda → desconto da venda
+ * sobre esse subtotal — `VendasService.criar`, confirmado linha a linha).
+ *
+ * `pagamentos` nunca inclui uma linha "Fiado": ela representa saldo NÃO
+ * recebido no ato, então é excluída do array antes do envio (ver
+ * `routes/index.tsx`) — o próprio `valorPendente` do backend (valorFinal
+ * menos os pagamentos reais) já cobre esse saldo, e `totalParcelas` informa
+ * em quantas parcelas ele deve ser dividido.
  */
 export interface PdvVendaPayload {
   clienteId?: string | undefined;
-  /** Nome de campo do backend é `descontoVenda`, não `desconto`. */
-  descontoVenda: number;
+  /** Nome de campo do backend é `descontoVenda`, não `desconto`. Omitido quando zero. */
+  descontoVenda?: PdvDesconto | undefined;
   itens: Array<{
     produtoId: string;
     varianteId: string;
     tamanhoId: string;
     quantidade: number;
+    /** Desconto sobre o preço praticado desta linha. Omitido quando zero. */
+    desconto?: PdvDesconto | undefined;
   }>;
-  pagamentos: Array<{ forma: string; valor: number }>;
+  /** Nunca inclui a linha local "Fiado" — ver nota acima. */
+  pagamentos: Array<{ forma: string; valor: number; parcelas?: number | undefined }>;
+  /** Quantidade de parcelas para dividir o saldo pendente (Fiado), quando houver. */
+  totalParcelas?: number | undefined;
 }
 
 /** Resposta de POST /api/v1/pdv/vendas. Campos além de `id` a confirmar no backend. */

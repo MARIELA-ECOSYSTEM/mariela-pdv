@@ -21,7 +21,7 @@ afterEach(() => vi.restoreAllMocks());
 
 const PAYLOAD: PdvVendaPayload = {
   clienteId: "cli1",
-  descontoVenda: 10,
+  descontoVenda: { tipo: "monetario", valor: 10 },
   itens: [{ produtoId: "p1", varianteId: "v1", tamanhoId: "t1", quantidade: 2 }],
   pagamentos: [{ forma: "dinheiro", valor: 189.9 }],
 };
@@ -40,7 +40,8 @@ describe("vendasApi.criar", () => {
     const corpo = JSON.parse((init.body as string) ?? "{}") as Record<string, unknown>;
 
     expect(corpo["idempotencyKey"]).toBe("chave-1");
-    expect(corpo["descontoVenda"]).toBe(10);
+    // "monetario" (vocabulário do frontend) → "valor" (nome real do backend, TIPOS_DESCONTO).
+    expect(corpo["descontoVenda"]).toEqual({ tipo: "valor", valor: 10 });
     expect(corpo["itens"]).toEqual([
       { produtoId: "p1", varianteId: "v1", tamanhoId: "t1", quantidade: 2 },
     ]);
@@ -82,5 +83,61 @@ describe("vendasApi.criar", () => {
       return JSON.parse((init.body as string) ?? "{}")["idempotencyKey"];
     });
     expect(chaves).toEqual(["chave-2", "chave-2"]);
+  });
+
+  it("desconto por item é enviado e traduzido (ItemVendaPdvDto.desconto, desconto-pdv.dto.ts)", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ id: "venda1" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const payload: PdvVendaPayload = {
+      itens: [
+        {
+          produtoId: "p1",
+          varianteId: "v1",
+          tamanhoId: "t1",
+          quantidade: 1,
+          desconto: { tipo: "percentual", valor: 15 },
+        },
+      ],
+      pagamentos: [{ forma: "dinheiro", valor: 85 }],
+    };
+
+    await vendasApi.criar(payload, "chave-item-desconto");
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const corpo = JSON.parse((init.body as string) ?? "{}") as {
+      itens: Array<Record<string, unknown>>;
+    };
+    // "percentual" já é o mesmo nome dos dois lados — só "monetario" muda para "valor".
+    expect(corpo.itens[0]?.["desconto"]).toEqual({ tipo: "percentual", valor: 15 });
+  });
+
+  it("desconto zerado (DESCONTO_ZERO) não é enviado — nem no item nem na venda", async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ id: "venda1" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const payload: PdvVendaPayload = {
+      descontoVenda: { tipo: "percentual", valor: 0 },
+      itens: [
+        {
+          produtoId: "p1",
+          varianteId: "v1",
+          tamanhoId: "t1",
+          quantidade: 1,
+          desconto: { tipo: "percentual", valor: 0 },
+        },
+      ],
+      pagamentos: [{ forma: "dinheiro", valor: 100 }],
+    };
+
+    await vendasApi.criar(payload, "chave-sem-desconto");
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const corpo = JSON.parse((init.body as string) ?? "{}") as {
+      descontoVenda?: unknown;
+      itens: Array<Record<string, unknown>>;
+    };
+    expect(corpo.descontoVenda).toBeUndefined();
+    expect(corpo.itens[0]?.["desconto"]).toBeUndefined();
   });
 });
