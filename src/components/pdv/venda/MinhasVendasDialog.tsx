@@ -44,7 +44,7 @@ export function MinhasVendasDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-3 border-b border-border bg-surface px-6 py-4 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 border-b border-border bg-surface px-6 py-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <div className="space-y-1.5">
             <Label htmlFor="historico-periodo">Período</Label>
             <Select value={periodo} onValueChange={(valor) => setPeriodo(valor as Periodo)}>
@@ -59,7 +59,7 @@ export function MinhasVendasDialog({
             </Select>
           </div>
 
-          {periodo === "personalizado" ? (
+          {periodo === "personalizado" && (
             <>
               <div className="space-y-1.5">
                 <Label htmlFor="historico-inicio">Data inicial</Label>
@@ -70,15 +70,15 @@ export function MinhasVendasDialog({
                 <Input id="historico-fim" type="date" />
               </div>
             </>
-          ) : (
-            <div className="space-y-1.5 md:col-span-2">
-              <Label htmlFor="historico-cliente">Cliente</Label>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" />
-                <Input id="historico-cliente" className="pl-9" placeholder="Nome do cliente" />
-              </div>
-            </div>
           )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="historico-cliente">Cliente</Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" />
+              <Input id="historico-cliente" className="pl-9" placeholder="Nome do cliente" />
+            </div>
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="historico-status">Status</Label>
@@ -103,23 +103,47 @@ export function MinhasVendasDialog({
               </SelectContent>
             </Select>
           </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="historico-situacao">Situação</Label>
+            <Select defaultValue="todas">
+              <SelectTrigger id="historico-situacao">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        <div className="flex min-h-72 flex-1 items-center justify-center overflow-y-auto px-6 py-10">
-          <div className="max-w-md text-center">
-            <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-accent text-accent-foreground">
-              <CalendarDays className="size-5" />
-            </span>
-            <h3 className="mt-4 text-base font-semibold">Histórico aguardando integração</h3>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              O contrato atual do PDV ainda não disponibiliza a consulta das vendas do vendedor.
-              Nenhuma venda fictícia é exibida aqui.
-            </p>
-            <p className="mt-3 flex items-start justify-center gap-1.5 text-xs leading-relaxed text-muted-foreground">
-              <Info className="mt-0.5 size-3.5 shrink-0" />
-              Quando a consulta oficial estiver disponível, os filtros e o detalhamento usarão os
-              dados restritos à sua sessão.
-            </p>
+        <div className="grid min-h-72 flex-1 overflow-y-auto md:grid-cols-[minmax(0,1.2fr)_minmax(16rem,0.8fr)]">
+          <section className="flex items-center justify-center border-b border-border px-6 py-10 md:border-b-0 md:border-r">
+            <div className="max-w-sm text-center">
+              <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                <CalendarDays className="size-5" />
+              </span>
+              <h3 className="mt-4 text-base font-semibold">Histórico aguardando integração</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                O contrato atual do PDV ainda não disponibiliza a consulta das vendas do vendedor.
+                Nenhuma venda fictícia é exibida aqui.
+              </p>
+            </div>
+          </section>
+
+          <aside className="flex items-center justify-center bg-surface px-6 py-10" aria-label="Detalhes da venda">
+            <div className="max-w-xs text-center">
+              <p className="text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
+                Detalhes da venda
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Selecione uma venda para conferir itens, descontos, pagamentos, parcelas e status.
+              </p>
+              <p className="mt-4 flex items-start justify-center gap-1.5 text-xs leading-relaxed text-muted-foreground">
+                <Info className="mt-0.5 size-3.5 shrink-0" />
+                Quando a consulta oficial estiver disponível, os dados serão restritos à sua sessão.
+              </p>
+            </div>
           </div>
         </div>
 
