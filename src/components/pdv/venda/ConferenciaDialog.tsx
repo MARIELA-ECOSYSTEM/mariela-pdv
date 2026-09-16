@@ -182,7 +182,18 @@ export function ConferenciaDialog({
               </ul>
             )}
             <div className="space-y-2 rounded-lg border border-border bg-surface p-3">
-              <Linha rotulo="Total recebido" valor={pagamentoTotais.recebido} destaque />
+              <Linha
+                rotulo={pagamentoTotais.fiado > 0.001 ? "Pago agora (entrada)" : "Total recebido"}
+                valor={
+                  pagamentoTotais.fiado > 0.001
+                    ? pagamentoTotais.pagoAgora
+                    : pagamentoTotais.recebido
+                }
+                destaque
+              />
+              {pagamentoTotais.fiado > 0.001 && (
+                <Linha rotulo="Fiado (a receber)" valor={pagamentoTotais.fiado} />
+              )}
               <Linha rotulo="Valor pendente" valor={pagamentoTotais.pendente} />
               {pagamentoTotais.troco > 0.001 && (
                 <Linha rotulo="Troco" valor={pagamentoTotais.troco} />
