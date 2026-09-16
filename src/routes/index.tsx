@@ -92,17 +92,6 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     };
   }, []);
 
-  function abrirCaixa(valorInicial: number) {
-    setCaixa("abrindo");
-    void (async () => {
-      try {
-        await pdvDataSource.caixa.abrir(valorInicial);
-        setCaixa("aberto");
-      } catch {
-        setCaixa("erro");
-      }
-    })();
-  }
 
   // ---- Catálogo: GET /api/v1/pdv/produtos (via porta de dados) ----
   const [busca, setBusca] = useState("");
