@@ -3,6 +3,7 @@
  * autoridade ao backend: servem para o operador conferir a venda na tela.
  */
 import { arredondarCentavos, descontoEmValor } from "@/lib/desconto";
+import { formaEhFiado } from "@/lib/pagamento";
 import type { PdvItemCarrinho } from "@/types/carrinho";
 import type { PdvDesconto } from "@/types/desconto";
 import type { PdvPagamentoLinha } from "@/types/venda";
