@@ -91,7 +91,18 @@ export function calcularTotaisPagamento(
   const liquidoTotal = arredondarCentavos(
     pagamentos.reduce((soma, p) => soma + ((p.valorLiquido ?? p.valor) || 0), 0),
   );
+  // FIADO é cobertura da venda, mas não é dinheiro recebido no ato.
+  const fiado = arredondarCentavos(
+    pagamentos.reduce((soma, p) => soma + (formaEhFiado(p.forma) ? p.valor || 0 : 0), 0),
+  );
+  const pagoAgora = arredondarCentavos(recebido - fiado);
   const situacao: PdvSituacaoPagamento =
-    pendente <= 0.001 && recebido > 0 ? "pago" : recebido > 0 ? "parcial" : "pendente";
-  return { recebido, pendente, troco, tarifaTotal, liquidoTotal, situacao };
+    fiado > 0.001
+      ? "fiado"
+      : pendente <= 0.001 && recebido > 0
+        ? "pago"
+        : recebido > 0
+          ? "parcial"
+          : "pendente";
+  return { recebido, pendente, troco, tarifaTotal, liquidoTotal, fiado, pagoAgora, situacao };
 }
