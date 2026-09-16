@@ -10,7 +10,7 @@ import { ClienteResumo } from "@/components/pdv/cliente/ClienteResumo";
 import { ClientePanel } from "@/components/pdv/cliente/ClientePanel";
 import { EtapaIndicador, type PdvEtapa } from "@/components/pdv/fluxo/EtapaIndicador";
 import { PagamentoPanel } from "@/components/pdv/pagamento/PagamentoPanel";
-import { CaixaDialog } from "@/components/pdv/caixa/CaixaDialog";
+import { CaixaAviso } from "@/components/pdv/caixa/CaixaAviso";
 import { VendaDialog } from "@/components/pdv/venda/VendaDialog";
 import { ConferenciaDialog } from "@/components/pdv/venda/ConferenciaDialog";
 import { usePdvAuth } from "@/features/auth/PdvAuthProvider";
@@ -72,7 +72,9 @@ function PdvPage() {
 }
 
 function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: () => void }) {
-  // ---- Caixa: GET /api/v1/pdv/caixa/atual e POST /api/v1/pdv/caixa/abertura ----
+  // ---- Caixa: apenas leitura de GET /api/v1/pdv/caixa/atual ----
+  // O PDV NÃO abre caixa: a abertura é exclusiva do MARIELA Backoffice e o
+  // mesmo caixa é compartilhado por todos os vendedores do PDV.
   const [caixa, setCaixa] = useState<PdvCaixaEstado>("carregando");
   useEffect(() => {
     let ativo = true;
