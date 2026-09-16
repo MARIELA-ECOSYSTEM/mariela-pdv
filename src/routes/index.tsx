@@ -17,7 +17,7 @@ import { usePdvAuth } from "@/features/auth/PdvAuthProvider";
 import { useCarrinho } from "@/features/carrinho/useCarrinho";
 import { useAtalhos } from "@/features/atalhos/useAtalhos";
 import { useAdquirentes } from "@/features/pagamento/useAdquirentes";
-import { formaEhCredito } from "@/lib/pagamento";
+import { formaEhCredito, formaEhFiado } from "@/lib/pagamento";
 import { ajustarParcelas, encontrarAdquirente } from "@/lib/adquirente";
 import { arredondarCentavos } from "@/lib/desconto";
 import { calcularTotaisPagamento, calcularTotaisVenda } from "@/lib/venda-totais";
@@ -168,7 +168,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         id: gerarUuid(),
         forma,
         valor: arredondarCentavos(pagamentoTotais.pendente),
-        ...(formaEhCredito(forma) ? { parcelas: 1 } : {}),
+        ...(formaEhCredito(forma) || formaEhFiado(forma) ? { parcelas: 1 } : {}),
       },
     ]);
   }
@@ -380,7 +380,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         onSelecionar={setCliente}
       />
 
-      <CaixaDialog estado={caixa} onAbrirCaixa={abrirCaixa} />
+      
 
       {/* Conferência antes do POST — "Voltar e editar" preserva toda a venda. */}
       <ConferenciaDialog
