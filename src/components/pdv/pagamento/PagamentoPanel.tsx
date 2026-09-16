@@ -297,6 +297,10 @@ export function PagamentoPanel({
                     onAlterarParcelas={onAlterarParcelas}
                   />
                 )}
+
+                {formaEhFiado(p.forma) && (
+                  <ResumoFiado pagamento={p} onAlterarParcelas={onAlterarParcelas} />
+                )}
               </li>
             ))}
           </ul>
