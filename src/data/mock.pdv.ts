@@ -228,4 +228,4 @@ export const MOCK_CLIENTES: PdvCliente[] = [
   { id: "c5", codigo: "CLI-0005", nome: "Marina Teixeira", telefone: "(31) 98120-7745" },
 ];
 
-export const MOCK_FORMAS_PAGAMENTO = ["Dinheiro", "PIX", "Débito", "Crédito"];
+export const MOCK_FORMAS_PAGAMENTO = ["Dinheiro", "PIX", "Débito", "Crédito", "Fiado"];

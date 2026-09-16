@@ -20,6 +20,15 @@ export function formaEhCartao(forma: string): boolean {
 }
 
 /**
+ * FIADO: o cliente não paga no ato e fica com saldo a receber. O frontend
+ * apenas representa essa intenção (valor pendente e nº de parcelas); as regras
+ * de cobrança e vencimentos são autoridade do backend.
+ */
+export function formaEhFiado(forma: string): boolean {
+  return /fiad/i.test(forma);
+}
+
+/**
  * NÃO é regra de negócio: as parcelas oferecidas ao operador vêm sempre da
  * configuração da adquirente (ver src/lib/adquirente.ts). Este helper existe
  * apenas como utilitário genérico de lista e não é usado no fluxo de crédito.

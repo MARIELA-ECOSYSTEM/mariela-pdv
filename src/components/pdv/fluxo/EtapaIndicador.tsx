@@ -57,9 +57,6 @@ export function EtapaIndicador({
           </div>
         );
       })}
-      <span className="ml-auto shrink-0 pl-1 text-[0.7rem] uppercase tracking-[0.12em] text-muted-foreground">
-        04 Conferência
-      </span>
     </nav>
   );
 }
