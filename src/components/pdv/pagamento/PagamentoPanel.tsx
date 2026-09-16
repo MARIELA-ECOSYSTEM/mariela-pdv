@@ -2,7 +2,13 @@ import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CampoDecimal } from "@/components/pdv/comum/CampoDecimal";
 import { formatMoeda } from "@/lib/format";
-import { formaEhCartao, formaEhCredito, formaEhDebito } from "@/lib/pagamento";
+import {
+  formaEhCartao,
+  formaEhCredito,
+  formaEhDebito,
+  formaEhFiado,
+  opcoesParcelas,
+} from "@/lib/pagamento";
 import {
   encontrarAdquirente,
   parcelasPermitidas,
