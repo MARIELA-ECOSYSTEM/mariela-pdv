@@ -114,7 +114,7 @@ export function MinhasVendasDialog({
                 <SelectItem value="todas">Todas</SelectItem>
               </SelectContent>
             </Select>
-          </aside>
+          </div>
         </div>
 
         <div className="grid min-h-72 flex-1 overflow-y-auto md:grid-cols-[minmax(0,1.2fr)_minmax(16rem,0.8fr)]">
@@ -144,7 +144,7 @@ export function MinhasVendasDialog({
                 Quando a consulta oficial estiver disponível, os dados serão restritos à sua sessão.
               </p>
             </div>
-          </div>
+          </aside>
         </div>
 
         <div className="flex justify-end border-t border-border px-6 py-4">
