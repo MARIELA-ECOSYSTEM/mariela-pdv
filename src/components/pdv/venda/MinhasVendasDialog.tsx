@@ -131,7 +131,10 @@ export function MinhasVendasDialog({
             </div>
           </section>
 
-          <aside className="flex items-center justify-center bg-surface px-6 py-10" aria-label="Detalhes da venda">
+          <aside
+            className="flex items-center justify-center bg-surface px-6 py-10"
+            aria-label="Detalhes da venda"
+          >
             <div className="max-w-xs text-center">
               <p className="text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
                 Detalhes da venda
