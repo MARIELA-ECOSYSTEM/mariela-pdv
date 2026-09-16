@@ -358,10 +358,15 @@ export function PagamentoPanel({
       </div>
 
       {/* Ação principal da etapa — conferência antes do envio */}
-      <div className="shrink-0 border-t border-border p-4">
+      <div className="shrink-0 space-y-2 border-t border-border p-4">
+        {bloqueado && (
+          <p className="text-center text-[0.7rem] leading-snug text-destructive">
+            Sem caixa aberto: solicite a abertura pelo MARIELA Backoffice para finalizar a venda.
+          </p>
+        )}
         <Button
           className="h-14 w-full text-base tracking-[0.12em]"
-          disabled={pagamentos.length === 0 || enviando}
+          disabled={pagamentos.length === 0 || enviando || bloqueado}
           onClick={onConferir}
         >
           {enviando ? <Loader2 className="size-5 animate-spin" /> : null}
