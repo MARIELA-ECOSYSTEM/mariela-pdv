@@ -10,14 +10,14 @@ import { ClienteResumo } from "@/components/pdv/cliente/ClienteResumo";
 import { ClientePanel } from "@/components/pdv/cliente/ClientePanel";
 import { EtapaIndicador, type PdvEtapa } from "@/components/pdv/fluxo/EtapaIndicador";
 import { PagamentoPanel } from "@/components/pdv/pagamento/PagamentoPanel";
-import { CaixaDialog } from "@/components/pdv/caixa/CaixaDialog";
+import { CaixaAviso } from "@/components/pdv/caixa/CaixaAviso";
 import { VendaDialog } from "@/components/pdv/venda/VendaDialog";
 import { ConferenciaDialog } from "@/components/pdv/venda/ConferenciaDialog";
 import { usePdvAuth } from "@/features/auth/PdvAuthProvider";
 import { useCarrinho } from "@/features/carrinho/useCarrinho";
 import { useAtalhos } from "@/features/atalhos/useAtalhos";
 import { useAdquirentes } from "@/features/pagamento/useAdquirentes";
-import { formaEhCredito } from "@/lib/pagamento";
+import { formaEhCredito, formaEhFiado } from "@/lib/pagamento";
 import { ajustarParcelas, encontrarAdquirente } from "@/lib/adquirente";
 import { arredondarCentavos } from "@/lib/desconto";
 import { calcularTotaisPagamento, calcularTotaisVenda } from "@/lib/venda-totais";
@@ -72,7 +72,9 @@ function PdvPage() {
 }
 
 function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: () => void }) {
-  // ---- Caixa: GET /api/v1/pdv/caixa/atual e POST /api/v1/pdv/caixa/abertura ----
+  // ---- Caixa: apenas leitura de GET /api/v1/pdv/caixa/atual ----
+  // O PDV NÃO abre caixa: a abertura é exclusiva do MARIELA Backoffice e o
+  // mesmo caixa é compartilhado por todos os vendedores do PDV.
   const [caixa, setCaixa] = useState<PdvCaixaEstado>("carregando");
   useEffect(() => {
     let ativo = true;
@@ -89,18 +91,6 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
       ativo = false;
     };
   }, []);
-
-  function abrirCaixa(valorInicial: number) {
-    setCaixa("abrindo");
-    void (async () => {
-      try {
-        await pdvDataSource.caixa.abrir(valorInicial);
-        setCaixa("aberto");
-      } catch {
-        setCaixa("erro");
-      }
-    })();
-  }
 
   // ---- Catálogo: GET /api/v1/pdv/produtos (via porta de dados) ----
   const [busca, setBusca] = useState("");
@@ -177,7 +167,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         id: gerarUuid(),
         forma,
         valor: arredondarCentavos(pagamentoTotais.pendente),
-        ...(formaEhCredito(forma) ? { parcelas: 1 } : {}),
+        ...(formaEhCredito(forma) || formaEhFiado(forma) ? { parcelas: 1 } : {}),
       },
     ]);
   }
@@ -254,6 +244,8 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
   /** Abre a conferência — nada é enviado ao backend aqui. */
   function abrirConferencia() {
     if (carrinho.itens.length === 0 || tentativa?.estado === "processando") return;
+    // Sem caixa aberto não há finalização: quem abre o caixa é o Backoffice.
+    if (caixa !== "aberto") return;
     setConferenciaAberta(true);
   }
 
@@ -273,7 +265,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
 
   /** Confirmação definitiva: nova venda = nova idempotencyKey. */
   function confirmarVenda() {
-    if (tentativa?.estado === "processando") return;
+    if (tentativa?.estado === "processando" || caixa !== "aberto") return;
     enviarVenda(gerarUuid());
   }
 
@@ -303,6 +295,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       <PdvHeader vendedorNome={vendedorNome} caixa={caixa} onSair={onSair} />
+      <CaixaAviso estado={caixa} />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 lg:grid-cols-[1fr_400px]">
         <div className="flex min-h-0 flex-col">
@@ -356,6 +349,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
               adquirentes={adquirentes}
               cliente={cliente}
               enviando={tentativa?.estado === "processando"}
+              bloqueado={bloqueado}
               onAdicionar={adicionarPagamento}
               onAlterarValor={(id, valor) =>
                 setPagamentos((atuais) => atuais.map((p) => (p.id === id ? { ...p, valor } : p)))
@@ -388,8 +382,6 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         onFechar={() => setClienteAberto(false)}
         onSelecionar={setCliente}
       />
-
-      <CaixaDialog estado={caixa} onAbrirCaixa={abrirCaixa} />
 
       {/* Conferência antes do POST — "Voltar e editar" preserva toda a venda. */}
       <ConferenciaDialog

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { formaEhCartao, formaEhCredito, formaEhDebito, opcoesParcelas } from "./pagamento";
+import {
+  formaEhCartao,
+  formaEhCredito,
+  formaEhDebito,
+  formaEhFiado,
+  opcoesParcelas,
+} from "./pagamento";
 
 describe("formas de pagamento", () => {
   it("reconhece crédito e débito com ou sem acento", () => {
@@ -12,6 +18,13 @@ describe("formas de pagamento", () => {
   it("dinheiro e PIX não são cartão", () => {
     expect(formaEhCartao("Dinheiro")).toBe(false);
     expect(formaEhCartao("PIX")).toBe(false);
+  });
+
+  it("reconhece fiado e não confunde com cartão", () => {
+    expect(formaEhFiado("Fiado")).toBe(true);
+    expect(formaEhFiado("fiado 3x")).toBe(true);
+    expect(formaEhFiado("Crédito")).toBe(false);
+    expect(formaEhCartao("Fiado")).toBe(false);
   });
 
   it("oferece parcelas de 1x até o máximo permitido", () => {

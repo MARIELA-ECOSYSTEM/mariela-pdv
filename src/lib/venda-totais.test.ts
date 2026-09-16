@@ -97,4 +97,15 @@ describe("pagamentos", () => {
     expect(totais.tarifaTotal).toBe(18);
     expect(totais.liquidoTotal).toBe(582);
   });
+
+  it("fiado separa o valor pago no ato do saldo a receber", () => {
+    const totais = calcularTotaisPagamento(
+      [pagamento({ forma: "Dinheiro", valor: 100 }), pagamento({ forma: "Fiado", valor: 200 })],
+      300,
+    );
+    expect(totais.situacao).toBe("fiado");
+    expect(totais.fiado).toBe(200);
+    expect(totais.pagoAgora).toBe(100);
+    expect(totais.pendente).toBe(0);
+  });
 });

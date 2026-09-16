@@ -3,6 +3,7 @@
  * autoridade ao backend: servem para o operador conferir a venda na tela.
  */
 import { arredondarCentavos, descontoEmValor } from "@/lib/desconto";
+import { formaEhFiado } from "@/lib/pagamento";
 import type { PdvItemCarrinho } from "@/types/carrinho";
 import type { PdvDesconto } from "@/types/desconto";
 import type { PdvPagamentoLinha } from "@/types/venda";
@@ -61,7 +62,7 @@ export function calcularTotaisVenda(
   };
 }
 
-export type PdvSituacaoPagamento = "pago" | "parcial" | "pendente";
+export type PdvSituacaoPagamento = "pago" | "parcial" | "pendente" | "fiado";
 
 export interface PdvPagamentoTotais {
   recebido: number;
@@ -69,6 +70,10 @@ export interface PdvPagamentoTotais {
   troco: number;
   tarifaTotal: number;
   liquidoTotal: number;
+  /** Soma das linhas em FIADO (valor a receber depois da venda). */
+  fiado: number;
+  /** Valor efetivamente pago no ato (entrada), sem as linhas em FIADO. */
+  pagoAgora: number;
   situacao: PdvSituacaoPagamento;
 }
 
@@ -87,7 +92,18 @@ export function calcularTotaisPagamento(
   const liquidoTotal = arredondarCentavos(
     pagamentos.reduce((soma, p) => soma + ((p.valorLiquido ?? p.valor) || 0), 0),
   );
+  // FIADO é cobertura da venda, mas não é dinheiro recebido no ato.
+  const fiado = arredondarCentavos(
+    pagamentos.reduce((soma, p) => soma + (formaEhFiado(p.forma) ? p.valor || 0 : 0), 0),
+  );
+  const pagoAgora = arredondarCentavos(recebido - fiado);
   const situacao: PdvSituacaoPagamento =
-    pendente <= 0.001 && recebido > 0 ? "pago" : recebido > 0 ? "parcial" : "pendente";
-  return { recebido, pendente, troco, tarifaTotal, liquidoTotal, situacao };
+    fiado > 0.001
+      ? "fiado"
+      : pendente <= 0.001 && recebido > 0
+        ? "pago"
+        : recebido > 0
+          ? "parcial"
+          : "pendente";
+  return { recebido, pendente, troco, tarifaTotal, liquidoTotal, fiado, pagoAgora, situacao };
 }

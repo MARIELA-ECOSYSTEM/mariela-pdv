@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { formatarDecimalBr } from "@/lib/decimal";
 import { formatMoeda } from "@/lib/format";
-import { formaEhCredito } from "@/lib/pagamento";
+import { formaEhCredito, formaEhFiado } from "@/lib/pagamento";
 import { encontrarAdquirente, valorParcela } from "@/lib/adquirente";
 import { totaisDoItem, type PdvPagamentoTotais, type PdvVendaTotais } from "@/lib/venda-totais";
 import type { PdvAdquirente } from "@/types/adquirente";
@@ -15,6 +15,7 @@ const SITUACAO = {
   pago: { rotulo: "PAGO", classe: "bg-success/15 text-success" },
   parcial: { rotulo: "PAGAMENTO PARCIAL", classe: "bg-primary/15 text-primary" },
   pendente: { rotulo: "PENDENTE", classe: "bg-destructive/10 text-destructive" },
+  fiado: { rotulo: "FIADO — SALDO A RECEBER", classe: "bg-primary/15 text-primary" },
 } as const;
 
 function Linha({
@@ -161,9 +162,13 @@ export function ConferenciaDialog({
                         <p className="truncate text-sm font-medium">{p.forma}</p>
                         <p className="text-xs text-muted-foreground">
                           {adquirente ? `${adquirente.nome} · ` : ""}
-                          {formaEhCredito(p.forma) && p.parcelas && p.parcelas > 1
+                          {(formaEhCredito(p.forma) || formaEhFiado(p.forma)) &&
+                          p.parcelas &&
+                          p.parcelas > 1
                             ? `${p.parcelas}x de ${formatMoeda(valorParcela(p.valor, p.parcelas))}`
-                            : "À vista"}
+                            : formaEhFiado(p.forma)
+                              ? "Pagamento posterior"
+                              : "À vista"}
                           {p.tarifa != null ? ` · Tarifa ${formatMoeda(p.tarifa)}` : ""}
                           {p.valorLiquido != null
                             ? ` · Líquido ${formatMoeda(p.valorLiquido)}`
@@ -177,7 +182,18 @@ export function ConferenciaDialog({
               </ul>
             )}
             <div className="space-y-2 rounded-lg border border-border bg-surface p-3">
-              <Linha rotulo="Total recebido" valor={pagamentoTotais.recebido} destaque />
+              <Linha
+                rotulo={pagamentoTotais.fiado > 0.001 ? "Pago agora (entrada)" : "Total recebido"}
+                valor={
+                  pagamentoTotais.fiado > 0.001
+                    ? pagamentoTotais.pagoAgora
+                    : pagamentoTotais.recebido
+                }
+                destaque
+              />
+              {pagamentoTotais.fiado > 0.001 && (
+                <Linha rotulo="Fiado (a receber)" valor={pagamentoTotais.fiado} />
+              )}
               <Linha rotulo="Valor pendente" valor={pagamentoTotais.pendente} />
               {pagamentoTotais.troco > 0.001 && (
                 <Linha rotulo="Troco" valor={pagamentoTotais.troco} />

@@ -2,7 +2,13 @@ import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CampoDecimal } from "@/components/pdv/comum/CampoDecimal";
 import { formatMoeda } from "@/lib/format";
-import { formaEhCartao, formaEhCredito, formaEhDebito } from "@/lib/pagamento";
+import {
+  formaEhCartao,
+  formaEhCredito,
+  formaEhDebito,
+  formaEhFiado,
+  opcoesParcelas,
+} from "@/lib/pagamento";
 import {
   encontrarAdquirente,
   parcelasPermitidas,
@@ -22,7 +28,54 @@ const SITUACAO = {
   pago: { rotulo: "PAGO", classe: "bg-success/20 text-success" },
   parcial: { rotulo: "PAGAMENTO PARCIAL", classe: "bg-primary/20 text-primary" },
   pendente: { rotulo: "PENDENTE", classe: "bg-destructive/20 text-destructive" },
+  fiado: { rotulo: "FIADO — SALDO A RECEBER", classe: "bg-primary/20 text-primary" },
 } as const;
+
+/**
+ * Linha FIADO: valor que ficará pendente e em quantas parcelas o cliente
+ * pagará depois. Vencimentos e cobrança são regra do backend — aqui só a
+ * intenção do operador.
+ */
+function ResumoFiado({
+  pagamento,
+  onAlterarParcelas,
+}: {
+  pagamento: PdvPagamentoLinha;
+  onAlterarParcelas: (id: string, parcelas: number) => void;
+}) {
+  const parcelas = pagamento.parcelas ?? 1;
+
+  return (
+    <div className="space-y-1.5 rounded-md bg-surface p-2">
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor={`fiado-${pagamento.id}`} className="text-[0.7rem] text-muted-foreground">
+          Parcelas do fiado
+        </label>
+        <select
+          id={`fiado-${pagamento.id}`}
+          value={parcelas}
+          onChange={(e) => onAlterarParcelas(pagamento.id, Number(e.target.value))}
+          className={SELECT}
+        >
+          {opcoesParcelas().map((n) => (
+            <option key={n} value={n}>
+              {n}x
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="space-y-0.5 text-[0.7rem] text-muted-foreground">
+        <p>Valor a receber depois: {formatMoeda(pagamento.valor)}</p>
+        {pagamento.valor > 0 && (
+          <p className="font-medium text-foreground">
+            {parcelas}x de {formatMoeda(valorParcela(pagamento.valor, parcelas))}
+          </p>
+        )}
+        <p>Vencimentos e cobrança seguem a configuração do Backoffice.</p>
+      </div>
+    </div>
+  );
+}
 
 /** Linha de cartão: adquirente, parcelamento autorizado, tarifa e líquido. */
 function ResumoCartao({
@@ -129,6 +182,7 @@ export function PagamentoPanel({
   adquirentes,
   cliente = null,
   enviando,
+  bloqueado = false,
   onAdicionar,
   onAlterarValor,
   onAlterarParcelas,
@@ -143,6 +197,8 @@ export function PagamentoPanel({
   adquirentes: PdvAdquirente[];
   cliente?: PdvCliente | null;
   enviando: boolean;
+  /** Sem caixa aberto (abertura é exclusiva do Backoffice) a venda não conclui. */
+  bloqueado?: boolean;
   onAdicionar: (forma: string) => void;
   onAlterarValor: (id: string, valor: number) => void;
   onAlterarParcelas: (id: string, parcelas: number) => void;
@@ -244,6 +300,10 @@ export function PagamentoPanel({
                     onAlterarParcelas={onAlterarParcelas}
                   />
                 )}
+
+                {formaEhFiado(p.forma) && (
+                  <ResumoFiado pagamento={p} onAlterarParcelas={onAlterarParcelas} />
+                )}
               </li>
             ))}
           </ul>
@@ -259,18 +319,26 @@ export function PagamentoPanel({
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Total recebido</span>
+          <span className="text-muted-foreground">
+            {totais.fiado > 0.001 ? "Pago agora (entrada)" : "Total recebido"}
+          </span>
           <span className="font-medium text-surface-foreground">
-            {formatMoeda(totais.recebido)}
+            {formatMoeda(totais.fiado > 0.001 ? totais.pagoAgora : totais.recebido)}
           </span>
         </div>
+        {totais.fiado > 0.001 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Fiado (a receber)</span>
+            <span className="font-medium text-surface-foreground">{formatMoeda(totais.fiado)}</span>
+          </div>
+        )}
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Pendente</span>
           <span className="font-medium text-surface-foreground">
             {formatMoeda(totais.pendente)}
           </span>
         </div>
-        {totais.pendente > 0.001 && (
+        {(totais.pendente > 0.001 || totais.fiado > 0.001) && (
           <p className="text-[0.7rem] leading-snug text-muted-foreground">
             Saldo em aberto {cliente ? `para ${cliente.nome}` : "sem cliente associado"}.
           </p>
@@ -291,10 +359,15 @@ export function PagamentoPanel({
       </div>
 
       {/* Ação principal da etapa — conferência antes do envio */}
-      <div className="shrink-0 border-t border-border p-4">
+      <div className="shrink-0 space-y-2 border-t border-border p-4">
+        {bloqueado && (
+          <p className="text-center text-[0.7rem] leading-snug text-destructive">
+            Sem caixa aberto: solicite a abertura pelo MARIELA Backoffice para finalizar a venda.
+          </p>
+        )}
         <Button
           className="h-14 w-full text-base tracking-[0.12em]"
-          disabled={pagamentos.length === 0 || enviando}
+          disabled={pagamentos.length === 0 || enviando || bloqueado}
           onClick={onConferir}
         >
           {enviando ? <Loader2 className="size-5 animate-spin" /> : null}
