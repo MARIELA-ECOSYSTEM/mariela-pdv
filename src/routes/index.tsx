@@ -6,13 +6,13 @@ import { CatalogoProdutos } from "@/components/pdv/catalogo/CatalogoProdutos";
 import { ProdutoDialog } from "@/components/pdv/produto/ProdutoDialog";
 import { CarrinhoPanel } from "@/components/pdv/carrinho/CarrinhoPanel";
 import { ClienteDialog } from "@/components/pdv/cliente/ClienteDialog";
-import { ClienteResumo } from "@/components/pdv/cliente/ClienteResumo";
 import { ClientePanel } from "@/components/pdv/cliente/ClientePanel";
-import { EtapaIndicador, type PdvEtapa } from "@/components/pdv/fluxo/EtapaIndicador";
+import type { PdvEtapa } from "@/components/pdv/fluxo/EtapaIndicador";
 import { PagamentoPanel } from "@/components/pdv/pagamento/PagamentoPanel";
 import { CaixaAviso } from "@/components/pdv/caixa/CaixaAviso";
 import { VendaDialog } from "@/components/pdv/venda/VendaDialog";
 import { ConferenciaDialog } from "@/components/pdv/venda/ConferenciaDialog";
+import { MinhasVendasDialog } from "@/components/pdv/venda/MinhasVendasDialog";
 import { usePdvAuth } from "@/features/auth/PdvAuthProvider";
 import { useCarrinho } from "@/features/carrinho/useCarrinho";
 import { useAtalhos } from "@/features/atalhos/useAtalhos";
@@ -139,6 +139,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
   // ---- Produto / carrinho / cliente ----
   const [produtoSelecionado, setProdutoSelecionado] = useState<PdvProduto | null>(null);
   const [clienteAberto, setClienteAberto] = useState(false);
+  const [minhasVendasAberto, setMinhasVendasAberto] = useState(false);
   const [cliente, setCliente] = useState<PdvCliente | null>(null);
   const carrinho = useCarrinho();
 
@@ -294,7 +295,16 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
-      <PdvHeader vendedorNome={vendedorNome} caixa={caixa} onSair={onSair} />
+      <PdvHeader
+        vendedorNome={vendedorNome}
+        cliente={cliente}
+        caixa={caixa}
+        etapa={etapa}
+        onIrParaEtapa={setEtapa}
+        onAlterarCliente={() => setClienteAberto(true)}
+        onAbrirMinhasVendas={() => setMinhasVendasAberto(true)}
+        onSair={onSair}
+      />
       <CaixaAviso estado={caixa} />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 lg:grid-cols-[1fr_400px]">
@@ -312,17 +322,6 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         </div>
 
         <aside className="surface-panel flex min-h-0 flex-col overflow-hidden">
-          <EtapaIndicador etapa={etapa} onIrPara={setEtapa} />
-
-          {/* Cliente compacto como contexto permanente nas etapas 2 e 3. */}
-          {etapa !== "cliente" && (
-            <ClienteResumo
-              cliente={cliente}
-              onAbrirCliente={() => setEtapa("cliente")}
-              onRemoverCliente={() => setCliente(null)}
-            />
-          )}
-
           {etapa === "cliente" ? (
             <ClientePanel
               cliente={cliente}
@@ -381,6 +380,12 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         aberto={clienteAberto}
         onFechar={() => setClienteAberto(false)}
         onSelecionar={setCliente}
+      />
+
+      <MinhasVendasDialog
+        aberto={minhasVendasAberto}
+        vendedorNome={vendedorNome}
+        onFechar={() => setMinhasVendasAberto(false)}
       />
 
       {/* Conferência antes do POST — "Voltar e editar" preserva toda a venda. */}
