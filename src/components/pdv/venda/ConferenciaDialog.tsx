@@ -15,6 +15,7 @@ const SITUACAO = {
   pago: { rotulo: "PAGO", classe: "bg-success/15 text-success" },
   parcial: { rotulo: "PAGAMENTO PARCIAL", classe: "bg-primary/15 text-primary" },
   pendente: { rotulo: "PENDENTE", classe: "bg-destructive/10 text-destructive" },
+  fiado: { rotulo: "FIADO — SALDO A RECEBER", classe: "bg-primary/15 text-primary" },
 } as const;
 
 function Linha({
