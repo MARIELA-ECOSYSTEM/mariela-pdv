@@ -114,7 +114,7 @@ export function MinhasVendasDialog({
                 <SelectItem value="todas">Todas</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </aside>
         </div>
 
         <div className="grid min-h-72 flex-1 overflow-y-auto md:grid-cols-[minmax(0,1.2fr)_minmax(16rem,0.8fr)]">
