@@ -197,6 +197,8 @@ export function PagamentoPanel({
   adquirentes: PdvAdquirente[];
   cliente?: PdvCliente | null;
   enviando: boolean;
+  /** Sem caixa aberto (abertura é exclusiva do Backoffice) a venda não conclui. */
+  bloqueado?: boolean;
   onAdicionar: (forma: string) => void;
   onAlterarValor: (id: string, valor: number) => void;
   onAlterarParcelas: (id: string, parcelas: number) => void;
