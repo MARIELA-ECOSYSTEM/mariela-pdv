@@ -316,18 +316,28 @@ export function PagamentoPanel({
           </span>
         </div>
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Total recebido</span>
+          <span className="text-muted-foreground">
+            {totais.fiado > 0.001 ? "Pago agora (entrada)" : "Total recebido"}
+          </span>
           <span className="font-medium text-surface-foreground">
-            {formatMoeda(totais.recebido)}
+            {formatMoeda(totais.fiado > 0.001 ? totais.pagoAgora : totais.recebido)}
           </span>
         </div>
+        {totais.fiado > 0.001 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">Fiado (a receber)</span>
+            <span className="font-medium text-surface-foreground">
+              {formatMoeda(totais.fiado)}
+            </span>
+          </div>
+        )}
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Pendente</span>
           <span className="font-medium text-surface-foreground">
             {formatMoeda(totais.pendente)}
           </span>
         </div>
-        {totais.pendente > 0.001 && (
+        {(totais.pendente > 0.001 || totais.fiado > 0.001) && (
           <p className="text-[0.7rem] leading-snug text-muted-foreground">
             Saldo em aberto {cliente ? `para ${cliente.nome}` : "sem cliente associado"}.
           </p>
