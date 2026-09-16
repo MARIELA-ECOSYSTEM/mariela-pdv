@@ -28,7 +28,54 @@ const SITUACAO = {
   pago: { rotulo: "PAGO", classe: "bg-success/20 text-success" },
   parcial: { rotulo: "PAGAMENTO PARCIAL", classe: "bg-primary/20 text-primary" },
   pendente: { rotulo: "PENDENTE", classe: "bg-destructive/20 text-destructive" },
+  fiado: { rotulo: "FIADO — SALDO A RECEBER", classe: "bg-primary/20 text-primary" },
 } as const;
+
+/**
+ * Linha FIADO: valor que ficará pendente e em quantas parcelas o cliente
+ * pagará depois. Vencimentos e cobrança são regra do backend — aqui só a
+ * intenção do operador.
+ */
+function ResumoFiado({
+  pagamento,
+  onAlterarParcelas,
+}: {
+  pagamento: PdvPagamentoLinha;
+  onAlterarParcelas: (id: string, parcelas: number) => void;
+}) {
+  const parcelas = pagamento.parcelas ?? 1;
+
+  return (
+    <div className="space-y-1.5 rounded-md bg-surface p-2">
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor={`fiado-${pagamento.id}`} className="text-[0.7rem] text-muted-foreground">
+          Parcelas do fiado
+        </label>
+        <select
+          id={`fiado-${pagamento.id}`}
+          value={parcelas}
+          onChange={(e) => onAlterarParcelas(pagamento.id, Number(e.target.value))}
+          className={SELECT}
+        >
+          {opcoesParcelas().map((n) => (
+            <option key={n} value={n}>
+              {n}x
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="space-y-0.5 text-[0.7rem] text-muted-foreground">
+        <p>Valor a receber depois: {formatMoeda(pagamento.valor)}</p>
+        {pagamento.valor > 0 && (
+          <p className="font-medium text-foreground">
+            {parcelas}x de {formatMoeda(valorParcela(pagamento.valor, parcelas))}
+          </p>
+        )}
+        <p>Vencimentos e cobrança seguem a configuração do Backoffice.</p>
+      </div>
+    </div>
+  );
+}
 
 /** Linha de cartão: adquirente, parcelamento autorizado, tarifa e líquido. */
 function ResumoCartao({
