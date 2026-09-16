@@ -182,6 +182,7 @@ export function PagamentoPanel({
   adquirentes,
   cliente = null,
   enviando,
+  bloqueado = false,
   onAdicionar,
   onAlterarValor,
   onAlterarParcelas,
