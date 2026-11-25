@@ -28,7 +28,7 @@ describe("modelo de produto do mock (produto → variante/cor → tamanho)", () 
   });
 
   it("mockDataSource.produtos.listar/obter devolvem a mesma estrutura aninhada, sem fabricar ids", async () => {
-    const lista = await mockDataSource.produtos.listar();
+    const { itens: lista } = await mockDataSource.produtos.listar();
     const produto = lista[0]!;
     const variante = produto.variantes[0]!;
     const tamanho = variante.tamanhos[0]!;

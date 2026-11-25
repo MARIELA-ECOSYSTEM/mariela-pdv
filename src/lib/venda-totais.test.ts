@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calcularTotaisPagamento,
   calcularTotaisVenda,
+  descontoVendaParaCarrinho,
   limitarDescontosDaVenda,
   totaisDoItem,
 } from "./venda-totais";
@@ -117,6 +118,46 @@ describe("limitarDescontosDaVenda (desconto coerente com o carrinho atual)", () 
     expect(limitarDescontosDaVenda([], { tipo: "monetario", valor: 30 }).descontoVenda.valor).toBe(
       0,
     );
+  });
+});
+
+describe("descontoVendaParaCarrinho — carrinho vazio (regra definitiva da Fase D)", () => {
+  it("carrinho esvaziado zera o desconto em R$", () => {
+    expect(descontoVendaParaCarrinho([], { tipo: "monetario", valor: 30 })).toEqual({
+      tipo: "monetario",
+      valor: 0,
+    });
+  });
+
+  it("produtos adicionados depois do carrinho vazio NÃO recuperam o desconto anterior", () => {
+    // Sequência como na tela: 2 itens com R$ 30 → carrinho vazio → novo item.
+    let desconto = descontoVendaParaCarrinho([item({ quantidade: 2 })], {
+      tipo: "monetario",
+      valor: 30,
+    });
+    expect(desconto.valor).toBe(30);
+    desconto = descontoVendaParaCarrinho([], desconto);
+    desconto = descontoVendaParaCarrinho([item({ quantidade: 2 })], desconto);
+    expect(desconto).toEqual({ tipo: "monetario", valor: 0 });
+    expect(calcularTotaisVenda([item({ quantidade: 2 })], desconto).total).toBe(200);
+  });
+
+  it("desconto em % mantém o comportamento atual (continua valendo com carrinho vazio)", () => {
+    let desconto = descontoVendaParaCarrinho([], { tipo: "percentual", valor: 10 });
+    expect(desconto).toEqual({ tipo: "percentual", valor: 10 });
+    desconto = descontoVendaParaCarrinho([item()], desconto);
+    expect(calcularTotaisVenda([item()], desconto).total).toBe(90);
+  });
+
+  it("com itens, segue o limite da Fase C (R$ até o subtotal)", () => {
+    expect(descontoVendaParaCarrinho([item()], { tipo: "monetario", valor: 150 })).toEqual({
+      tipo: "monetario",
+      valor: 100,
+    });
+    expect(descontoVendaParaCarrinho([item()], { tipo: "monetario", valor: 20 })).toEqual({
+      tipo: "monetario",
+      valor: 20,
+    });
   });
 });
 

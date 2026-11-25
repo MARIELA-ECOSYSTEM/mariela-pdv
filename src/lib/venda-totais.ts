@@ -83,6 +83,25 @@ export function limitarDescontosDaVenda(
   return { itens: ajustados, descontoVenda: limitarDesconto(base, descontoVenda) };
 }
 
+/**
+ * Desconto da venda a manter quando o carrinho muda.
+ *
+ * Regra definitiva: carrinho COMPLETAMENTE vazio encerra a composição daquela
+ * venda — o desconto em R$ é zerado e não volta quando novos produtos forem
+ * adicionados (não existe recuperação de desconto antigo). O desconto em %
+ * segue o comportamento de sempre (continua valendo, limitado a 100%).
+ * Com itens, vale o mesmo limite do backend (ver limitarDescontosDaVenda).
+ */
+export function descontoVendaParaCarrinho(
+  itens: PdvItemCarrinho[],
+  descontoVenda: PdvDesconto,
+): PdvDesconto {
+  if (itens.length === 0 && descontoVenda.tipo === "monetario") {
+    return { tipo: "monetario", valor: 0 };
+  }
+  return limitarDescontosDaVenda(itens, descontoVenda).descontoVenda;
+}
+
 export type PdvSituacaoPagamento = "pago" | "parcial" | "pendente" | "fiado";
 
 export interface PdvPagamentoTotais {

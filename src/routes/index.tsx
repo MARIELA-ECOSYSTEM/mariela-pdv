@@ -25,12 +25,19 @@ import {
   validarPagamentos,
 } from "@/lib/pagamento";
 import { ajustarParcelas, encontrarAdquirente, suportaModalidade } from "@/lib/adquirente";
-import { arredondarCentavos, limitarDesconto } from "@/lib/desconto";
+import { arredondarCentavos } from "@/lib/desconto";
 import {
   calcularTotaisPagamento,
   calcularTotaisVenda,
+  descontoVendaParaCarrinho,
   limitarDescontosDaVenda,
 } from "@/lib/venda-totais";
+import {
+  juntarPaginas,
+  relerProdutosVendidos,
+  substituirProdutos,
+} from "@/features/catalogo/catalogo";
+import { PDV_CATALOGO_POR_PAGINA } from "@/config/pdv.config";
 import { gerarUuid } from "@/lib/uuid";
 import { pdvDataSource } from "@/services/pdv-data-source";
 import { criarControleVenda, type ControleVenda } from "@/features/venda/controle-venda";
@@ -117,26 +124,44 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     }
   }
 
-  // ---- Catálogo: GET /api/v1/pdv/produtos (via porta de dados) ----
+  // ---- Catálogo: GET /api/v1/pdv/produtos?busca=&page=&limit= ----
+  // A busca é do backend (nome, código ou categoria) e não é refiltrada aqui.
+  // "Carregar mais" pede a próxima página do mesmo resultado.
   const [busca, setBusca] = useState("");
   const [estadoCatalogo, setEstadoCatalogo] = useState<RequestState>("loading");
   const [produtos, setProdutos] = useState<PdvProduto[]>([]);
+  const [paginaCatalogo, setPaginaCatalogo] = useState({ pagina: 1, totalPaginas: 1, total: 0 });
+  const [carregandoMais, setCarregandoMais] = useState(false);
+  const [erroCarregarMais, setErroCarregarMais] = useState(false);
+  // Muda a cada nova busca: descarta "Carregar mais" de uma busca anterior.
+  const versaoBuscaRef = useRef(0);
   const buscaRef = useRef<HTMLInputElement>(null);
 
   const [recarga, setRecarga] = useState(0);
   useEffect(() => {
     let ativo = true;
+    const versao = ++versaoBuscaRef.current;
     setEstadoCatalogo("loading");
-    // O termo digitado vai ao backend como `busca` (GET /pdv/produtos?busca=).
+    setCarregandoMais(false);
+    setErroCarregarMais(false);
     // Debounce apenas para não disparar uma requisição por tecla.
     const termo = busca.trim();
     const disparo = setTimeout(
       () => {
         void (async () => {
           try {
-            const lista = await pdvDataSource.produtos.listar(termo ? { busca: termo } : undefined);
-            if (!ativo) return;
-            setProdutos(lista);
+            const pagina = await pdvDataSource.produtos.listar({
+              ...(termo ? { busca: termo } : {}),
+              page: 1,
+              limit: PDV_CATALOGO_POR_PAGINA,
+            });
+            if (!ativo || versao !== versaoBuscaRef.current) return;
+            setProdutos(pagina.itens);
+            setPaginaCatalogo({
+              pagina: pagina.pagina,
+              totalPaginas: pagina.totalPaginas,
+              total: pagina.total,
+            });
             setEstadoCatalogo("success");
           } catch {
             if (!ativo) return;
@@ -153,13 +178,31 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     };
   }, [recarga, busca]);
 
-  const produtosFiltrados = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
-    if (!termo) return produtos;
-    return produtos.filter(
-      (p) => p.nome.toLowerCase().includes(termo) || (p.codigo ?? "").toLowerCase().includes(termo),
-    );
-  }, [produtos, busca]);
+  async function carregarMaisProdutos() {
+    if (carregandoMais || paginaCatalogo.pagina >= paginaCatalogo.totalPaginas) return;
+    const versao = versaoBuscaRef.current;
+    const termo = busca.trim();
+    setCarregandoMais(true);
+    setErroCarregarMais(false);
+    try {
+      const pagina = await pdvDataSource.produtos.listar({
+        ...(termo ? { busca: termo } : {}),
+        page: paginaCatalogo.pagina + 1,
+        limit: PDV_CATALOGO_POR_PAGINA,
+      });
+      if (versao !== versaoBuscaRef.current) return;
+      setProdutos((atuais) => juntarPaginas(atuais, pagina.itens));
+      setPaginaCatalogo({
+        pagina: pagina.pagina,
+        totalPaginas: pagina.totalPaginas,
+        total: pagina.total,
+      });
+    } catch {
+      if (versao === versaoBuscaRef.current) setErroCarregarMais(true);
+    } finally {
+      if (versao === versaoBuscaRef.current) setCarregandoMais(false);
+    }
+  }
 
   // ---- Produto / carrinho / cliente ----
   const [produtoSelecionado, setProdutoSelecionado] = useState<PdvProduto | null>(null);
@@ -178,14 +221,14 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
   const total = totais.total;
   // Carrinho mudou (quantidade, remoção, inclusão): um desconto em R$ maior que
   // o novo subtotal é reduzido sozinho ao máximo possível — o backend recusa
-  // desconto acima da base e a vendedora não precisa corrigir à mão.
-  const subtotalAposItens = totais.subtotalAposItens;
+  // desconto acima da base e a vendedora não precisa corrigir à mão. Carrinho
+  // vazio zera o desconto em R$ de vez (ver descontoVendaParaCarrinho).
   useEffect(() => {
     setDescontoVenda((atual) => {
-      const limitado = limitarDesconto(subtotalAposItens, atual);
-      return limitado.valor === atual.valor ? atual : limitado;
+      const ajustado = descontoVendaParaCarrinho(carrinho.itens, atual);
+      return ajustado.tipo === atual.tipo && ajustado.valor === atual.valor ? atual : ajustado;
     });
-  }, [subtotalAposItens]);
+  }, [carrinho.itens]);
 
   // ---- Pagamentos ----
   // Formas e adquirentes vêm da API (GET /pdv/pagamentos/*), nunca de lista fixa.
@@ -258,6 +301,20 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     });
   }
   const controleVenda = controleRef.current;
+
+  // Venda concluída: relê do backend SÓ os produtos vendidos (GET
+  // /pdv/produtos/:id) para o estoque do catálogo não ficar velho. Uma vez por
+  // venda; sem recarregar o catálogo inteiro.
+  const vendaComEstoqueRelidoRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (tentativa?.estado !== "concluida" || !tentativa.vendaId) return;
+    if (vendaComEstoqueRelidoRef.current === tentativa.vendaId) return;
+    vendaComEstoqueRelidoRef.current = tentativa.vendaId;
+    const ids = (tentativa.itens ?? []).map((item) => item.produtoId);
+    void relerProdutosVendidos(ids, pdvDataSource.produtos).then((atualizados) => {
+      setProdutos((lista) => substituirProdutos(lista, atualizados));
+    });
+  }, [tentativa]);
 
   function montarPayload(): PdvVendaPayload {
     // POST /api/v1/pdv/vendas — o frontend envia apenas intenção.
@@ -381,13 +438,18 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         <div className="flex min-h-0 flex-col">
           <CatalogoProdutos
             ref={buscaRef}
-            produtos={produtosFiltrados}
+            produtos={produtos}
             estado={estadoCatalogo}
             busca={busca}
             onBuscaChange={setBusca}
             onSelecionar={setProdutoSelecionado}
             onTentarNovamente={() => setRecarga((n) => n + 1)}
             bloqueado={bloqueado}
+            total={paginaCatalogo.total}
+            temMais={paginaCatalogo.pagina < paginaCatalogo.totalPaginas}
+            carregandoMais={carregandoMais}
+            erroCarregarMais={erroCarregarMais}
+            onCarregarMais={() => void carregarMaisProdutos()}
           />
         </div>
 
@@ -447,6 +509,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         aberto={!!produtoSelecionado}
         onFechar={() => setProdutoSelecionado(null)}
         onAdicionar={carrinho.adicionar}
+        quantidadeNoCarrinho={carrinho.quantidadeDaLinha}
       />
 
       <ClienteDialog

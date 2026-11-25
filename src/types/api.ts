@@ -20,4 +20,16 @@ export interface PdvApiError {
 /** Parâmetros de busca aceitos pelas listagens (`busca`, confirmado nos DTOs de produtos e clientes do backend). */
 export interface PdvBuscaParams {
   busca?: string | undefined;
+  /** Página (1…). Hoje só usada no catálogo (`ListarProdutosPdvQueryDto`). */
+  page?: number | undefined;
+  /** Itens por página — o backend do PDV aceita até 60. */
+  limit?: number | undefined;
+}
+
+/** Uma página de listagem, a partir de `{ data, meta: { total, page, totalPages } }`. */
+export interface PdvPagina<T> {
+  itens: T[];
+  pagina: number;
+  totalPaginas: number;
+  total: number;
 }

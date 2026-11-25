@@ -67,10 +67,68 @@ describe("useCarrinho", () => {
 
   it("adicionar o mesmo linhaId duas vezes soma quantidade em vez de duplicar a linha", () => {
     hook = montarHook();
-    act(() => hook!.atual.adicionar(item({ quantidade: 1 })));
-    act(() => hook!.atual.adicionar(item({ quantidade: 2 })));
+    act(() => hook!.atual.adicionar(item({ quantidade: 1, estoqueDisponivel: 5 })));
+    act(() => hook!.atual.adicionar(item({ quantidade: 2, estoqueDisponivel: 5 })));
 
     expect(hook.atual.itens).toHaveLength(1);
+    expect(hook.atual.itens[0]?.quantidade).toBe(3);
+    expect(hook.atual.quantidadeDaLinha(item().linhaId)).toBe(3);
+  });
+
+  it("adicionar repetidamente nunca passa do estoque conhecido do tamanho", () => {
+    hook = montarHook();
+    act(() => hook!.atual.adicionar(item({ quantidade: 1, estoqueDisponivel: 2 })));
+    act(() => hook!.atual.adicionar(item({ quantidade: 1, estoqueDisponivel: 2 })));
+    act(() => hook!.atual.adicionar(item({ quantidade: 1, estoqueDisponivel: 2 })));
+
+    expect(hook.atual.itens[0]?.quantidade).toBe(2);
+  });
+
+  it("adicionar mais do que o estoque de uma vez fica limitado ao estoque", () => {
+    hook = montarHook();
+    act(() => hook!.atual.adicionar(item({ quantidade: 9, estoqueDisponivel: 4 })));
+    expect(hook.atual.itens[0]?.quantidade).toBe(4);
+  });
+
+  it("tamanho sem estoque não entra no carrinho", () => {
+    hook = montarHook();
+    act(() => hook!.atual.adicionar(item({ quantidade: 1, estoqueDisponivel: 0 })));
+    expect(hook.atual.itens).toHaveLength(0);
+  });
+
+  it("o estoque é por tamanho/variante: outro tamanho do mesmo produto tem limite próprio", () => {
+    hook = montarHook();
+    act(() => hook!.atual.adicionar(item({ quantidade: 2, estoqueDisponivel: 2 })));
+    act(() =>
+      hook!.atual.adicionar(
+        item({
+          linhaId: "p1:p1-preto:p1-preto-g",
+          tamanhoId: "p1-preto-g",
+          tamanho: "G",
+          quantidade: 3,
+          estoqueDisponivel: 3,
+        }),
+      ),
+    );
+    expect(hook.atual.itens.map((i) => i.quantidade)).toEqual([2, 3]);
+    expect(hook.atual.quantidadeDaLinha("p1:p1-preto:p1-preto-g")).toBe(3);
+    expect(hook.atual.quantidadeDaLinha("inexistente")).toBe(0);
+  });
+
+  it("estoque mais recente informado prevalece ao somar", () => {
+    hook = montarHook();
+    act(() => hook!.atual.adicionar(item({ quantidade: 1, estoqueDisponivel: 5 })));
+    act(() => hook!.atual.adicionar(item({ quantidade: 5, estoqueDisponivel: 3 })));
+    expect(hook.atual.itens[0]?.quantidade).toBe(3);
+    expect(hook.atual.itens[0]?.estoqueDisponivel).toBe(3);
+  });
+
+  it("aumentar a quantidade de um item já no carrinho para no estoque", () => {
+    hook = montarHook();
+    act(() => hook!.atual.adicionar(item({ quantidade: 1, estoqueDisponivel: 3 })));
+    act(() => hook!.atual.alterarQuantidade(item().linhaId, 2));
+    act(() => hook!.atual.alterarQuantidade(item().linhaId, 3));
+    act(() => hook!.atual.alterarQuantidade(item().linhaId, 4));
     expect(hook.atual.itens[0]?.quantidade).toBe(3);
   });
 

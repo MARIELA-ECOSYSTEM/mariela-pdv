@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { PackageSearch, Search, TriangleAlert } from "lucide-react";
+import { Loader2, PackageSearch, Search, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,9 +17,29 @@ export const CatalogoProdutos = forwardRef<
     onSelecionar: (produto: PdvProduto) => void;
     onTentarNovamente: () => void;
     bloqueado?: boolean;
+    /** Total de produtos do resultado no backend (meta.total). */
+    total?: number;
+    /** Há mais páginas deste resultado no backend. */
+    temMais?: boolean;
+    carregandoMais?: boolean;
+    erroCarregarMais?: boolean;
+    onCarregarMais?: () => void;
   }
 >(function CatalogoProdutos(
-  { produtos, estado, busca, onBuscaChange, onSelecionar, onTentarNovamente, bloqueado },
+  {
+    produtos,
+    estado,
+    busca,
+    onBuscaChange,
+    onSelecionar,
+    onTentarNovamente,
+    bloqueado,
+    total = 0,
+    temMais = false,
+    carregandoMais = false,
+    erroCarregarMais = false,
+    onCarregarMais,
+  },
   ref,
 ) {
   return (
@@ -31,7 +51,7 @@ export const CatalogoProdutos = forwardRef<
             ref={ref}
             value={busca}
             onChange={(e) => onBuscaChange(e.target.value)}
-            placeholder="Buscar produto por nome ou código   (atalho: / )"
+            placeholder="Buscar por nome, código ou categoria   (atalho: / )"
             className="h-12 rounded-xl border-border bg-card pl-10 text-base shadow-[var(--shadow-soft)]"
             disabled={bloqueado}
           />
@@ -82,6 +102,23 @@ export const CatalogoProdutos = forwardRef<
             {produtos.map((produto) => (
               <ProdutoCard key={produto.id} produto={produto} onSelecionar={onSelecionar} />
             ))}
+          </div>
+        )}
+
+        {estado === "success" && temMais && onCarregarMais && (
+          <div className="flex flex-col items-center gap-2 py-5 text-center">
+            <p className="text-xs text-muted-foreground">
+              Mostrando {produtos.length} de {total} produtos. Para achar mais rápido, use a busca.
+            </p>
+            {erroCarregarMais && (
+              <p className="text-xs text-destructive">
+                Não foi possível carregar mais produtos. Tente novamente.
+              </p>
+            )}
+            <Button variant="secondary" disabled={carregandoMais} onClick={onCarregarMais}>
+              {carregandoMais ? <Loader2 className="size-4 animate-spin" /> : null}
+              Carregar mais produtos
+            </Button>
           </div>
         )}
       </div>

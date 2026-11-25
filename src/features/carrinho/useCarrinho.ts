@@ -4,19 +4,41 @@ import { totaisDoItem } from "@/lib/venda-totais";
 import type { PdvItemCarrinho } from "@/types/carrinho";
 import type { PdvDesconto } from "@/types/desconto";
 
+/** Chave da linha do carrinho: uma por produto + variante (cor) + tamanho. */
+export function linhaDoCarrinho(produtoId: string, varianteId: string, tamanhoId: string): string {
+  return `${produtoId}:${varianteId}:${tamanhoId}`;
+}
+
 /** Carrinho 100% local — sem persistência em storage, banco ou backend. */
 export function useCarrinho() {
   const [itens, setItens] = useState<PdvItemCarrinho[]>([]);
 
+  /**
+   * Adiciona (ou soma à linha existente) sem passar do estoque conhecido do
+   * tamanho escolhido (`estoqueDisponivel`, vindo da API no momento da
+   * escolha — o mais recente prevalece). O backend segue sendo a autoridade
+   * final; isto só evita montar um carrinho que ele recusaria.
+   */
   const adicionar = useCallback((item: PdvItemCarrinho) => {
     setItens((atuais) => {
       const existente = atuais.find((i) => i.linhaId === item.linhaId);
-      if (!existente) return [...atuais, item];
+      const limite = Math.max(0, item.estoqueDisponivel);
+      const quantidade = Math.min((existente?.quantidade ?? 0) + item.quantidade, limite);
+      if (quantidade <= 0) return atuais;
+      if (!existente) return [...atuais, { ...item, quantidade }];
       return atuais.map((i) =>
-        i.linhaId === item.linhaId ? { ...i, quantidade: i.quantidade + item.quantidade } : i,
+        i.linhaId === item.linhaId
+          ? { ...i, quantidade, estoqueDisponivel: item.estoqueDisponivel }
+          : i,
       );
     });
   }, []);
+
+  /** Quantas unidades daquela linha (produto + variante + tamanho) já estão no carrinho. */
+  const quantidadeDaLinha = useCallback(
+    (linhaId: string) => itens.find((i) => i.linhaId === linhaId)?.quantidade ?? 0,
+    [itens],
+  );
 
   const remover = useCallback((linhaId: string) => {
     setItens((atuais) => atuais.filter((i) => i.linhaId !== linhaId));
@@ -75,6 +97,7 @@ export function useCarrinho() {
   return {
     itens,
     adicionar,
+    quantidadeDaLinha,
     remover,
     alterarQuantidade,
     alterarDesconto,

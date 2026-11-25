@@ -10,7 +10,7 @@
  * backend real (não há criar cliente, listar variantes ou listar minhas vendas).
  */
 import type { PdvAdquirente } from "@/types/adquirente";
-import type { PdvBuscaParams } from "@/types/api";
+import type { PdvBuscaParams, PdvPagina } from "@/types/api";
 import type { PdvLoginPayload, PdvVendedor } from "@/types/auth";
 import type { PdvCaixa } from "@/types/caixa";
 import type { PdvCliente } from "@/types/cliente";
@@ -34,8 +34,8 @@ export interface PdvCaixaPort {
 }
 
 export interface PdvProdutosPort {
-  /** GET /api/v1/pdv/produtos */
-  listar(params?: PdvBuscaParams): Promise<PdvProduto[]>;
+  /** GET /api/v1/pdv/produtos?busca=&page=&limit= — uma página do catálogo. */
+  listar(params?: PdvBuscaParams): Promise<PdvPagina<PdvProduto>>;
   /** GET /api/v1/pdv/produtos/:id */
   obter(id: string): Promise<PdvProduto>;
 }

@@ -25,6 +25,11 @@ export interface PdvRequestOptions extends Omit<RequestInit, "body"> {
   idempotencyKey?: string;
   /** Timeout próprio desta chamada (padrão: PDV_REQUEST_TIMEOUT_MS). */
   timeoutMs?: number;
+  /**
+   * Devolve o corpo inteiro (`{ data, meta }`) em vez de só `data` — usado
+   * apenas por listagens paginadas que precisam do `meta`.
+   */
+  manterEnvelope?: boolean;
   /** Uso interno do retry pós-refresh. */
   _retried?: boolean;
 }
@@ -125,7 +130,7 @@ async function renovarSessao(): Promise<boolean> {
 
 export async function pdvRequest<T>(path: string, options: PdvRequestOptions = {}): Promise<T> {
   const baseUrl = assertApiConfigurada();
-  const { body, idempotencyKey, headers, timeoutMs, _retried, ...rest } = options;
+  const { body, idempotencyKey, headers, timeoutMs, manterEnvelope, _retried, ...rest } = options;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs ?? PDV_REQUEST_TIMEOUT_MS);
 
@@ -175,6 +180,7 @@ export async function pdvRequest<T>(path: string, options: PdvRequestOptions = {
     // de sucesso (ver nota no topo do arquivo). Listagens já vêm como
     // { data: [...], meta }, então `corpo.data` também resolve para o array.
     const corpo = (await res.json()) as { data: T };
+    if (manterEnvelope) return corpo as T;
     return corpo.data;
   } catch (error) {
     if (error instanceof PdvHttpError) throw error;

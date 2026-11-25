@@ -16,7 +16,7 @@ import {
 import { PdvTokenStorage } from "@/lib/pdv-token-storage";
 import { PdvHttpError } from "@/services/api/client";
 import type { PdvDataSource } from "@/services/ports";
-import type { PdvBuscaParams } from "@/types/api";
+import type { PdvBuscaParams, PdvPagina } from "@/types/api";
 import type { PdvLoginPayload, PdvVendedor } from "@/types/auth";
 import type { PdvCaixa } from "@/types/caixa";
 import type { PdvCliente } from "@/types/cliente";
@@ -79,12 +79,23 @@ export const mockDataSource: PdvDataSource = {
   },
 
   produtos: {
-    listar(params?: PdvBuscaParams): Promise<PdvProduto[]> {
+    listar(params?: PdvBuscaParams): Promise<PdvPagina<PdvProduto>> {
       const termo = (params?.busca ?? "").trim().toLowerCase();
       const lista = termo
         ? MOCK_PRODUTOS.filter((p) => contemTermo(p.nome, termo) || contemTermo(p.codigo, termo))
         : MOCK_PRODUTOS;
-      return espera(lista, 600);
+      // Mesma paginação do backend (page/limit → meta).
+      const limit = params?.limit ?? 30;
+      const pagina = params?.page ?? 1;
+      return espera(
+        {
+          itens: lista.slice((pagina - 1) * limit, pagina * limit),
+          pagina,
+          totalPaginas: Math.max(1, Math.ceil(lista.length / limit)),
+          total: lista.length,
+        },
+        600,
+      );
     },
     async obter(id: string): Promise<PdvProduto> {
       const produto = MOCK_PRODUTOS.find((p) => p.id === id);

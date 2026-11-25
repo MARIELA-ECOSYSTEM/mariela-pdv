@@ -77,6 +77,12 @@ export const PDV_REQUEST_TIMEOUT_MS = 15000;
  */
 export const PDV_VENDA_TIMEOUT_MS = 30000;
 
+/**
+ * Produtos por página do catálogo — o máximo que GET /pdv/produtos aceita
+ * (`LIMITE_MAXIMO_PDV` = 60 no backend): menos idas ao servidor ao rolar.
+ */
+export const PDV_CATALOGO_POR_PAGINA = 60;
+
 /** Prefixo único dos endpoints do PDV no mariela-backend. */
 export const PDV_API_PREFIX = "/api/v1/pdv";
 

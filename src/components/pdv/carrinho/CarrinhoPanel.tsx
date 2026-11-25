@@ -100,6 +100,12 @@ function ItemCarrinho({
             </Button>
           </div>
 
+          {item.quantidade >= item.estoqueDisponivel && (
+            <p className="mt-1 text-[0.65rem] text-muted-foreground">
+              Máximo em estoque: {item.estoqueDisponivel} peça(s).
+            </p>
+          )}
+
           {aberto && (
             <div className="mt-2 flex items-center justify-between gap-2 border-t border-border pt-2">
               <Label

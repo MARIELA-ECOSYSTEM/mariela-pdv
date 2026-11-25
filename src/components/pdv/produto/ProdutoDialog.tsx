@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ProdutoImagem } from "@/components/pdv/ProdutoImagem";
 import { formatMoeda } from "@/lib/format";
+import { linhaDoCarrinho } from "@/features/carrinho/useCarrinho";
 import { cn } from "@/lib/utils";
 import type { PdvProduto } from "@/types/produto";
 import type { PdvItemCarrinho } from "@/types/carrinho";
@@ -19,11 +20,14 @@ export function ProdutoDialog({
   aberto,
   onFechar,
   onAdicionar,
+  quantidadeNoCarrinho = () => 0,
 }: {
   produto: PdvProduto | null;
   aberto: boolean;
   onFechar: () => void;
   onAdicionar: (item: PdvItemCarrinho) => void;
+  /** Unidades já no carrinho para a linha produto:variante:tamanho. */
+  quantidadeNoCarrinho?: (linhaId: string) => number;
 }) {
   const variantes = produto?.variantes ?? [];
 
@@ -42,12 +46,17 @@ export function ProdutoDialog({
   const tamanhos = variante?.tamanhos ?? [];
   const tamanho = tamanhos.find((t) => t.id === tamanhoId);
   const estoque = tamanho?.quantidade ?? 0;
-  const podeAdicionar = !!produto && !!variante && !!tamanho && estoque > 0;
+  const linhaId =
+    produto && variante && tamanho ? linhaDoCarrinho(produto.id, variante.id, tamanho.id) : "";
+  const noCarrinho = linhaId ? quantidadeNoCarrinho(linhaId) : 0;
+  // Estoque conhecido menos o que já está no carrinho para este tamanho.
+  const disponivel = Math.max(0, estoque - noCarrinho);
+  const podeAdicionar = !!produto && !!variante && !!tamanho && disponivel > 0;
 
   function adicionar() {
-    if (!produto || !variante || !tamanho) return;
+    if (!produto || !variante || !tamanho || disponivel <= 0) return;
     onAdicionar({
-      linhaId: `${produto.id}:${variante.id}:${tamanho.id}`,
+      linhaId,
       produtoId: produto.id,
       varianteId: variante.id,
       tamanhoId: tamanho.id,
@@ -57,7 +66,7 @@ export function ProdutoDialog({
       tamanho: tamanho.tamanho,
       imagemUrl: produto.imagemUrl,
       precoUnitario: produto.preco,
-      quantidade,
+      quantidade: Math.min(quantidade, disponivel),
       estoqueDisponivel: tamanho.quantidade,
     });
     onFechar();
@@ -142,10 +151,19 @@ export function ProdutoDialog({
                         );
                       })}
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {tamanho
-                        ? `${estoque} peça(s) disponível(is)`
-                        : "Selecione o tamanho para ver o estoque."}
+                    <p
+                      className={cn(
+                        "text-xs",
+                        tamanho && disponivel === 0 ? "text-destructive" : "text-muted-foreground",
+                      )}
+                    >
+                      {!tamanho
+                        ? "Selecione o tamanho para ver o estoque."
+                        : noCarrinho === 0
+                          ? `${estoque} peça(s) disponível(is)`
+                          : disponivel === 0
+                            ? `Todo o estoque deste tamanho (${estoque}) já está no carrinho.`
+                            : `${noCarrinho} já no carrinho · pode adicionar mais ${disponivel}.`}
                     </p>
                   </div>
                 )}
@@ -164,9 +182,8 @@ export function ProdutoDialog({
                     <Button
                       variant="outline"
                       size="icon"
-                      onClick={() =>
-                        setQuantidade((q) => (estoque ? Math.min(estoque, q + 1) : q + 1))
-                      }
+                      disabled={!tamanho || quantidade >= disponivel}
+                      onClick={() => setQuantidade((q) => Math.min(Math.max(1, disponivel), q + 1))}
                     >
                       <Plus className="size-4" />
                     </Button>
