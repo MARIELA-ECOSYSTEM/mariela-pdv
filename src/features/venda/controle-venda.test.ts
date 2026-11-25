@@ -357,6 +357,44 @@ describe("payload enviado ao backend com dinheiro e troco", () => {
   });
 });
 
+describe("payload com cartão (Fase B) sobre a idempotência da Fase A", () => {
+  it("crédito com adquirente real: modalidade, adquirenteId e parcelas vão no corpo; retry reaproveita a chave", async () => {
+    const controle = novoControle();
+    backend.falhas.push("perde-resposta");
+    const { pagamentos } = montarPagamentosParaEnvio(
+      [{ forma: "Crédito", valor: 89.9, adquirenteId: "665f1c2e9b1d4a0012345678", parcelas: 6 }],
+      89.9,
+    );
+
+    await controle.finalizar(payload(1, pagamentos), RESUMO);
+    await controle.finalizar(payload(1, pagamentos), RESUMO);
+
+    expect(backend.corpos.map((c) => c.pagamentos)).toEqual([
+      [
+        {
+          forma: "Crédito",
+          valor: 89.9,
+          modalidade: "credito",
+          adquirenteId: "665f1c2e9b1d4a0012345678",
+          parcelas: 6,
+        },
+      ],
+      [
+        {
+          forma: "Crédito",
+          valor: 89.9,
+          modalidade: "credito",
+          adquirenteId: "665f1c2e9b1d4a0012345678",
+          parcelas: 6,
+        },
+      ],
+    ]);
+    expect(backend.corpos.map((c) => c.idempotencyKey)).toEqual(["chave-1", "chave-1"]);
+    expect(controle.tentativa?.estado).toBe("concluida");
+    expect(backend.vendas.size).toBe(1);
+  });
+});
+
 describe("classificarFalhaVenda", () => {
   it.each([
     [new PdvHttpError("A operação demorou demais."), "desconhecida"],

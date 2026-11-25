@@ -16,9 +16,15 @@ import { MinhasVendasDialog } from "@/components/pdv/venda/MinhasVendasDialog";
 import { usePdvAuth } from "@/features/auth/PdvAuthProvider";
 import { useCarrinho } from "@/features/carrinho/useCarrinho";
 import { useAtalhos } from "@/features/atalhos/useAtalhos";
-import { useAdquirentes } from "@/features/pagamento/useAdquirentes";
-import { formaEhCredito, formaEhFiado, montarPagamentosParaEnvio } from "@/lib/pagamento";
-import { ajustarParcelas, encontrarAdquirente } from "@/lib/adquirente";
+import { useOpcoesPagamento } from "@/features/pagamento/useOpcoesPagamento";
+import {
+  formaEhCredito,
+  formaEhFiado,
+  modalidadeCartao,
+  montarPagamentosParaEnvio,
+  validarPagamentos,
+} from "@/lib/pagamento";
+import { ajustarParcelas, encontrarAdquirente, suportaModalidade } from "@/lib/adquirente";
 import { arredondarCentavos } from "@/lib/desconto";
 import { calcularTotaisPagamento, calcularTotaisVenda } from "@/lib/venda-totais";
 import { gerarUuid } from "@/lib/uuid";
@@ -154,22 +160,39 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
   const total = totais.total;
 
   // ---- Pagamentos ----
-  // Adquirentes vêm de configuração (Backoffice/API), nunca de lista fixa aqui.
-  const { adquirentes } = useAdquirentes();
+  // Formas e adquirentes vêm da API (GET /pdv/pagamentos/*), nunca de lista fixa.
+  const opcoesPagamento = useOpcoesPagamento();
+  const adquirentes = opcoesPagamento.adquirentes.dados;
   const [pagamentos, setPagamentos] = useState<PdvPagamentoLinha[]>([]);
   const pagamentoTotais = useMemo(
     () => calcularTotaisPagamento(pagamentos, total),
     [pagamentos, total],
   );
+  // Pagamento incompleto (ex.: cartão sem maquininha) impede conferir a venda.
+  const problemaPagamento = useMemo(
+    () => validarPagamentos(pagamentos, total, adquirentes),
+    [pagamentos, total, adquirentes],
+  );
 
   function adicionarPagamento(forma: string) {
+    // Cartão com uma única maquininha válida: já vem escolhida (menos um passo).
+    const modalidade = modalidadeCartao(forma);
+    const validas = modalidade ? adquirentes.filter((a) => suportaModalidade(a, modalidade)) : [];
+    const unica = validas.length === 1 ? validas[0] : undefined;
+    const parcelas =
+      modalidade === "credito"
+        ? (ajustarParcelas(unica, 1) ?? 1)
+        : formaEhFiado(forma)
+          ? 1
+          : undefined;
     setPagamentos((atuais) => [
       ...atuais,
       {
         id: gerarUuid(),
         forma,
         valor: arredondarCentavos(pagamentoTotais.pendente),
-        ...(formaEhCredito(forma) || formaEhFiado(forma) ? { parcelas: 1 } : {}),
+        ...(unica ? { adquirenteId: unica.id } : {}),
+        ...(parcelas ? { parcelas } : {}),
       },
     ]);
   }
@@ -250,6 +273,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     if (caixa !== "aberto") return;
     // Valor acima do total que não pode virar troco (ex.: PIX acima do total).
     if (pagamentoTotais.excedente > 0) return;
+    if (problemaPagamento) return;
     setConferenciaAberta(true);
   }
 
@@ -285,7 +309,14 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
       { tecla: "Enter", ctrl: true, acao: avancarFluxo },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [carrinho.itens.length, total, tentativa?.estado, etapa, pagamentoTotais.excedente],
+    [
+      carrinho.itens.length,
+      total,
+      tentativa?.estado,
+      etapa,
+      pagamentoTotais.excedente,
+      problemaPagamento,
+    ],
   );
   useAtalhos(atalhos, caixa === "aberto");
 
@@ -343,7 +374,10 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
               pagamentos={pagamentos}
               totaisVenda={totais}
               totais={pagamentoTotais}
-              adquirentes={adquirentes}
+              formas={opcoesPagamento.formas}
+              adquirentes={opcoesPagamento.adquirentes}
+              problema={problemaPagamento}
+              onRecarregarOpcoes={opcoesPagamento.recarregar}
               cliente={cliente}
               enviando={tentativa?.estado === "processando"}
               bloqueado={bloqueado}

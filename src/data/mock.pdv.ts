@@ -7,6 +7,7 @@
  * cor com `tamanhos[]` próprios, cada tamanho com seu próprio id — nunca uma
  * combinação cor+tamanho achatada num único id fabricado.
  */
+import type { PdvAdquirente } from "@/types/adquirente";
 import type { PdvProduto } from "@/types/produto";
 import type { PdvCliente } from "@/types/cliente";
 
@@ -228,4 +229,34 @@ export const MOCK_CLIENTES: PdvCliente[] = [
   { id: "c5", codigo: "CLI-0005", nome: "Marina Teixeira", telefone: "(31) 98120-7745" },
 ];
 
-export const MOCK_FORMAS_PAGAMENTO = ["Dinheiro", "PIX", "Débito", "Crédito", "Fiado"];
+/**
+ * Mesmo formato de GET /pdv/pagamentos/formas. "Fiado" não entra: no backend
+ * fiado não é forma de pagamento (é saldo pendente) — o PDV o oferece à parte.
+ */
+export const MOCK_FORMAS_PAGAMENTO = ["Dinheiro", "PIX", "Débito", "Crédito"];
+
+/** Mesmo formato de GET /pdv/pagamentos/adquirentes (AdquirentePdv). */
+export const MOCK_ADQUIRENTES: PdvAdquirente[] = [
+  {
+    id: "mock-adq-1",
+    nome: "Maquininha A",
+    modalidades: {
+      debito: { tarifaPercentual: 1.39 },
+      credito: {
+        opcoes: [
+          { parcelas: 1, tarifaPercentual: 3.09 },
+          { parcelas: 2, tarifaPercentual: 4.2 },
+          { parcelas: 3, tarifaPercentual: 4.9 },
+        ],
+      },
+    },
+  },
+  {
+    id: "mock-adq-2",
+    nome: "Maquininha B",
+    modalidades: {
+      debito: null,
+      credito: { opcoes: [{ parcelas: 1, tarifaPercentual: 2.99 }] },
+    },
+  },
+];

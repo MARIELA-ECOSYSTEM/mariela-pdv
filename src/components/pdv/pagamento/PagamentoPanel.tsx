@@ -5,21 +5,23 @@ import { formatMoeda } from "@/lib/format";
 import {
   formaEhCartao,
   formaEhCredito,
-  formaEhDebito,
   formaEhDinheiro,
   formaEhFiado,
+  formasParaExibir,
   opcoesParcelas,
 } from "@/lib/pagamento";
 import {
   encontrarAdquirente,
   parcelasPermitidas,
+  suportaModalidade,
   tarifaConfigurada,
   valorParcela,
 } from "@/lib/adquirente";
 import { arredondarCentavos } from "@/lib/desconto";
-import { MOCK_FORMAS_PAGAMENTO } from "@/data/mock.pdv";
+import type { ListaCarregada } from "@/features/pagamento/useOpcoesPagamento";
 import type { PdvPagamentoTotais, PdvVendaTotais } from "@/lib/venda-totais";
 import type { PdvAdquirente } from "@/types/adquirente";
+import type { RequestState } from "@/types/api";
 import type { PdvPagamentoLinha } from "@/types/venda";
 import type { PdvCliente } from "@/types/cliente";
 
@@ -78,8 +80,63 @@ function ResumoFiado({
   );
 }
 
-/** Linha de cartão: adquirente, parcelamento autorizado, tarifa e líquido. */
+/**
+ * Linha de cartão: maquininha (só as que aceitam a modalidade, vindas da API),
+ * parcelamento autorizado, tarifa e líquido.
+ */
 function ResumoCartao({
+  pagamento,
+  adquirentes,
+  estadoAdquirentes,
+  onRecarregar,
+  onAlterarAdquirente,
+  onAlterarParcelas,
+}: {
+  pagamento: PdvPagamentoLinha;
+  /** Já filtradas pela modalidade desta linha. */
+  adquirentes: PdvAdquirente[];
+  estadoAdquirentes: RequestState;
+  onRecarregar: () => void;
+  onAlterarAdquirente: (id: string, adquirenteId: string) => void;
+  onAlterarParcelas: (id: string, parcelas: number) => void;
+}) {
+  if (estadoAdquirentes === "loading" || estadoAdquirentes === "idle") {
+    return (
+      <p className="flex items-center gap-1.5 rounded-md bg-surface p-2 text-[0.7rem] text-muted-foreground">
+        <Loader2 className="size-3 animate-spin" />
+        Carregando maquininhas…
+      </p>
+    );
+  }
+  if (estadoAdquirentes === "error") {
+    return (
+      <div className="flex items-center justify-between gap-2 rounded-md bg-destructive/10 p-2 text-[0.7rem] text-destructive">
+        <span>Não foi possível carregar as maquininhas.</span>
+        <Button variant="outline" size="sm" className="h-7 text-[0.7rem]" onClick={onRecarregar}>
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
+  if (adquirentes.length === 0) {
+    return (
+      <p className="rounded-md bg-destructive/10 p-2 text-[0.7rem] text-destructive">
+        Nenhuma maquininha aceita {formaEhCredito(pagamento.forma) ? "crédito" : "débito"}. Peça ao
+        responsável para configurar no Backoffice.
+      </p>
+    );
+  }
+  return (
+    <ResumoCartaoConfigurado
+      pagamento={pagamento}
+      adquirentes={adquirentes}
+      onAlterarAdquirente={onAlterarAdquirente}
+      onAlterarParcelas={onAlterarParcelas}
+    />
+  );
+}
+
+function ResumoCartaoConfigurado({
   pagamento,
   adquirentes,
   onAlterarAdquirente,
@@ -116,7 +173,7 @@ function ResumoCartao({
           htmlFor={`adquirente-${pagamento.id}`}
           className="text-[0.7rem] text-muted-foreground"
         >
-          Adquirente
+          Maquininha
         </label>
         <select
           id={`adquirente-${pagamento.id}`}
@@ -143,7 +200,7 @@ function ResumoCartao({
           </label>
           {permitidas.length === 0 ? (
             <span className="text-[0.7rem] text-muted-foreground">
-              Selecione a adquirente para ver as parcelas
+              Escolha a maquininha para ver as parcelas
             </span>
           ) : (
             <select
@@ -180,7 +237,10 @@ export function PagamentoPanel({
   pagamentos,
   totaisVenda,
   totais,
+  formas,
   adquirentes,
+  problema = null,
+  onRecarregarOpcoes,
   cliente = null,
   enviando,
   bloqueado = false,
@@ -195,7 +255,13 @@ export function PagamentoPanel({
   pagamentos: PdvPagamentoLinha[];
   totaisVenda: PdvVendaTotais;
   totais: PdvPagamentoTotais;
-  adquirentes: PdvAdquirente[];
+  /** GET /pdv/pagamentos/formas — com estado de carregamento. */
+  formas: ListaCarregada<string>;
+  /** GET /pdv/pagamentos/adquirentes — com estado de carregamento. */
+  adquirentes: ListaCarregada<PdvAdquirente>;
+  /** Pagamento incompleto/inválido (ver validarPagamentos) — impede conferir. */
+  problema?: string | null;
+  onRecarregarOpcoes: () => void;
   cliente?: PdvCliente | null;
   enviando: boolean;
   /** Sem caixa aberto (abertura é exclusiva do Backoffice) a venda não conclui. */
@@ -251,19 +317,46 @@ export function PagamentoPanel({
           </div>
         </div>
 
-        {/* forma é string livre no contrato — estas são apenas opções rápidas */}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {MOCK_FORMAS_PAGAMENTO.map((forma) => (
+        {/* Formas cadastradas no Backoffice (API) + Fiado local (saldo pendente) */}
+        {formas.estado === "loading" || formas.estado === "idle" ? (
+          <p className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Carregando formas de pagamento…
+          </p>
+        ) : formas.estado === "error" ? (
+          <div className="flex items-center justify-between gap-2 rounded-md bg-destructive/10 p-2 text-xs text-destructive">
+            <span>Não foi possível carregar as formas de pagamento.</span>
             <Button
-              key={forma}
               variant="outline"
-              className="h-10 text-xs"
-              onClick={() => onAdicionar(forma)}
+              size="sm"
+              className="h-7 text-xs"
+              onClick={onRecarregarOpcoes}
             >
-              {forma}
+              Tentar novamente
             </Button>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <>
+            {formas.dados.length === 0 && (
+              <p className="rounded-md bg-destructive/10 p-2 text-xs text-destructive">
+                Nenhuma forma de pagamento cadastrada. Peça ao responsável para cadastrar em
+                Configurações no Backoffice.
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {formasParaExibir(formas.dados).map((forma) => (
+                <Button
+                  key={forma}
+                  variant="outline"
+                  className="h-10 text-xs"
+                  onClick={() => onAdicionar(forma)}
+                >
+                  {forma}
+                </Button>
+              ))}
+            </div>
+          </>
+        )}
 
         {pagamentos.length > 0 && (
           <ul className="space-y-2">
@@ -304,9 +397,11 @@ export function PagamentoPanel({
                 {formaEhCartao(p.forma) && (
                   <ResumoCartao
                     pagamento={p}
-                    adquirentes={adquirentes.filter((a) =>
-                      formaEhDebito(p.forma) ? !!a.modalidades.debito : true,
+                    adquirentes={adquirentes.dados.filter((a) =>
+                      suportaModalidade(a, formaEhCredito(p.forma) ? "credito" : "debito"),
                     )}
+                    estadoAdquirentes={adquirentes.estado}
+                    onRecarregar={onRecarregarOpcoes}
                     onAlterarAdquirente={onAlterarAdquirente}
                     onAlterarParcelas={onAlterarParcelas}
                   />
@@ -382,9 +477,16 @@ export function PagamentoPanel({
             troco — ajuste os valores.
           </p>
         )}
+        {problema && (
+          <p role="alert" className="text-center text-[0.7rem] leading-snug text-destructive">
+            {problema}
+          </p>
+        )}
         <Button
           className="h-14 w-full text-base tracking-[0.12em]"
-          disabled={pagamentos.length === 0 || enviando || bloqueado || totais.excedente > 0}
+          disabled={
+            pagamentos.length === 0 || enviando || bloqueado || totais.excedente > 0 || !!problema
+          }
           onClick={onConferir}
         >
           {enviando ? <Loader2 className="size-5 animate-spin" /> : null}

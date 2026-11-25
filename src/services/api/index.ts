@@ -3,6 +3,7 @@ import type { PdvDataSource } from "@/services/ports";
 import { authApi } from "./auth.api";
 import { caixaApi } from "./caixa.api";
 import { clientesApi } from "./clientes.api";
+import { pagamentosApi } from "./pagamentos.api";
 import { produtosApi } from "./produtos.api";
 import { vendasApi } from "./vendas.api";
 
@@ -12,5 +13,6 @@ export const apiDataSource: PdvDataSource = {
   caixa: caixaApi,
   produtos: produtosApi,
   clientes: clientesApi,
+  pagamentos: pagamentosApi,
   vendas: vendasApi,
 };

@@ -7,7 +7,12 @@
  * Nenhum comportamento aqui deve ser copiado para o adaptador real: o backend
  * é a autoridade sobre preço, estoque, caixa, venda e autenticação.
  */
-import { MOCK_CLIENTES, MOCK_PRODUTOS } from "@/data/mock.pdv";
+import {
+  MOCK_ADQUIRENTES,
+  MOCK_CLIENTES,
+  MOCK_FORMAS_PAGAMENTO,
+  MOCK_PRODUTOS,
+} from "@/data/mock.pdv";
 import { PdvTokenStorage } from "@/lib/pdv-token-storage";
 import { PdvHttpError } from "@/services/api/client";
 import type { PdvDataSource } from "@/services/ports";
@@ -100,6 +105,15 @@ export const mockDataSource: PdvDataSource = {
           (digitos.length > 0 && (c.telefone ?? "").replace(/\D/g, "").includes(digitos)),
       );
       return espera(lista, 350);
+    },
+  },
+
+  pagamentos: {
+    listarFormas(): Promise<string[]> {
+      return espera(MOCK_FORMAS_PAGAMENTO, 300);
+    },
+    listarAdquirentes() {
+      return espera(MOCK_ADQUIRENTES, 300);
     },
   },
 

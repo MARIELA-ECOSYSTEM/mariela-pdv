@@ -9,6 +9,7 @@
  * componentes de interface. Nenhuma porta declara operação que não exista no
  * backend real (não há criar cliente, listar variantes ou listar minhas vendas).
  */
+import type { PdvAdquirente } from "@/types/adquirente";
 import type { PdvBuscaParams } from "@/types/api";
 import type { PdvLoginPayload, PdvVendedor } from "@/types/auth";
 import type { PdvCaixa } from "@/types/caixa";
@@ -44,6 +45,13 @@ export interface PdvClientesPort {
   listar(params?: PdvBuscaParams): Promise<PdvCliente[]>;
 }
 
+export interface PdvPagamentosPort {
+  /** GET /api/v1/pdv/pagamentos/formas — rótulos cadastrados no Backoffice (`pagamentos[].forma`). */
+  listarFormas(): Promise<string[]>;
+  /** GET /api/v1/pdv/pagamentos/adquirentes — ativas, com modalidades e parcelamentos autorizados. */
+  listarAdquirentes(): Promise<PdvAdquirente[]>;
+}
+
 export interface PdvVendasPort {
   /**
    * POST /api/v1/pdv/vendas
@@ -58,5 +66,6 @@ export interface PdvDataSource {
   caixa: PdvCaixaPort;
   produtos: PdvProdutosPort;
   clientes: PdvClientesPort;
+  pagamentos: PdvPagamentosPort;
   vendas: PdvVendasPort;
 }

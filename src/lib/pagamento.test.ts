@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
+import type { PdvAdquirente } from "@/types/adquirente";
 import {
   aplicarTroco,
   calcularTroco,
+  formasParaExibir,
+  modalidadeCartao,
+  validarPagamentos,
   formaEhCartao,
   formaEhCredito,
   formaEhDebito,
@@ -37,18 +41,18 @@ describe("formas de pagamento", () => {
 });
 
 describe("montarPagamentosParaEnvio (contrato de POST /pdv/vendas)", () => {
-  it("uma venda sem Fiado envia todos os pagamentos tal como estão", () => {
+  it("uma venda sem Fiado envia todos os pagamentos (cartão com modalidade e adquirente)", () => {
     const resultado = montarPagamentosParaEnvio(
       [
         { forma: "Dinheiro", valor: 50 },
-        { forma: "Crédito", valor: 50, parcelas: 3 },
+        { forma: "Crédito", valor: 50, parcelas: 3, adquirenteId: "adq-1" },
       ],
       100,
     );
 
     expect(resultado.pagamentos).toEqual([
       { forma: "Dinheiro", valor: 50 },
-      { forma: "Crédito", valor: 50, parcelas: 3 },
+      { forma: "Crédito", valor: 50, parcelas: 3, modalidade: "credito", adquirenteId: "adq-1" },
     ]);
     expect(resultado.totalParcelas).toBeUndefined();
   });
@@ -126,13 +130,13 @@ describe("dinheiro e troco", () => {
 
   it("cartão cobre o total e ainda há dinheiro: a linha de dinheiro vira troco integral e não é enviada", () => {
     const pagamentos = [
-      { forma: "Crédito", valor: 100, parcelas: 1 },
+      { forma: "Crédito", valor: 100, parcelas: 1, adquirenteId: "adq-1" },
       { forma: "Dinheiro", valor: 20 },
     ];
 
     expect(calcularTroco(pagamentos, 100)).toEqual({ troco: 20, excedente: 0 });
     expect(montarPagamentosParaEnvio(pagamentos, 100).pagamentos).toEqual([
-      { forma: "Crédito", valor: 100, parcelas: 1 },
+      { forma: "Crédito", valor: 100, parcelas: 1, modalidade: "credito", adquirenteId: "adq-1" },
     ]);
   });
 
@@ -177,6 +181,184 @@ describe("dinheiro e troco", () => {
     expect(envio.pagamentos).toEqual([
       { forma: "PIX", valor: 0.1 },
       { forma: "Dinheiro", valor: 0.2 },
+    ]);
+  });
+});
+
+// Adquirentes no formato real de GET /pdv/pagamentos/adquirentes.
+const STONE: PdvAdquirente = {
+  id: "adq-stone",
+  nome: "Stone",
+  modalidades: {
+    debito: { tarifaPercentual: 1.2 },
+    credito: {
+      opcoes: [
+        { parcelas: 1, tarifaPercentual: 2.9 },
+        { parcelas: 6, tarifaPercentual: 4.5 },
+      ],
+    },
+  },
+};
+const SO_CREDITO: PdvAdquirente = {
+  id: "adq-cielo",
+  nome: "Cielo",
+  modalidades: { debito: null, credito: { opcoes: [{ parcelas: 3, tarifaPercentual: 3.3 }] } },
+};
+const ADQUIRENTES = [STONE, SO_CREDITO];
+
+describe("modalidade das formas cadastradas", () => {
+  it("débito e crédito exigem adquirente; dinheiro, PIX e outras não", () => {
+    expect(modalidadeCartao("Crédito")).toBe("credito");
+    expect(modalidadeCartao("Cartão de crédito")).toBe("credito");
+    expect(modalidadeCartao("Débito")).toBe("debito");
+    expect(modalidadeCartao("Dinheiro")).toBeUndefined();
+    expect(modalidadeCartao("PIX")).toBeUndefined();
+    expect(modalidadeCartao("Vale-presente")).toBeUndefined();
+  });
+});
+
+describe("formasParaExibir (formas reais da API)", () => {
+  it("mostra exatamente as formas cadastradas, na ordem da API, mais o Fiado local", () => {
+    expect(formasParaExibir(["PIX", "Cartão de Crédito", "Dinheiro"])).toEqual([
+      "PIX",
+      "Cartão de Crédito",
+      "Dinheiro",
+      "Fiado",
+    ]);
+  });
+
+  it("não inventa formas: lista vazia da API mostra apenas o Fiado local", () => {
+    expect(formasParaExibir([])).toEqual(["Fiado"]);
+  });
+
+  it("não duplica Fiado quando a loja já o cadastrou e ignora vazios/repetidos", () => {
+    expect(formasParaExibir(["Dinheiro", " ", "dinheiro", "Fiado"])).toEqual(["Dinheiro", "Fiado"]);
+  });
+});
+
+describe("validarPagamentos (pagamento incompleto)", () => {
+  it("dinheiro e PIX não exigem adquirente", () => {
+    expect(
+      validarPagamentos(
+        [
+          { forma: "Dinheiro", valor: 50 },
+          { forma: "PIX", valor: 50 },
+        ],
+        100,
+        [],
+      ),
+    ).toBeNull();
+  });
+
+  it("cartão sem maquininha escolhida bloqueia", () => {
+    expect(validarPagamentos([{ forma: "Débito", valor: 100 }], 100, ADQUIRENTES)).toBe(
+      "Escolha a maquininha do pagamento em Débito.",
+    );
+  });
+
+  it("id que não está na lista real (ex.: lista recarregada) bloqueia", () => {
+    expect(
+      validarPagamentos(
+        [{ forma: "Débito", valor: 100, adquirenteId: "dev-adq-1" }],
+        100,
+        ADQUIRENTES,
+      ),
+    ).toBe("Escolha a maquininha do pagamento em Débito.");
+  });
+
+  it("maquininha que não aceita a modalidade bloqueia", () => {
+    expect(
+      validarPagamentos(
+        [{ forma: "Débito", valor: 100, adquirenteId: "adq-cielo" }],
+        100,
+        ADQUIRENTES,
+      ),
+    ).toBe("A maquininha Cielo não aceita débito.");
+  });
+
+  it("crédito com parcelamento não configurado bloqueia", () => {
+    expect(
+      validarPagamentos(
+        [{ forma: "Crédito", valor: 100, adquirenteId: "adq-stone", parcelas: 3 }],
+        100,
+        ADQUIRENTES,
+      ),
+    ).toBe("Escolha o parcelamento do pagamento em Crédito.");
+  });
+
+  it("débito e crédito completos passam", () => {
+    expect(
+      validarPagamentos(
+        [
+          { forma: "Débito", valor: 40, adquirenteId: "adq-stone" },
+          { forma: "Crédito", valor: 60, adquirenteId: "adq-cielo", parcelas: 3 },
+        ],
+        100,
+        ADQUIRENTES,
+      ),
+    ).toBeNull();
+  });
+
+  it("linha de cartão sem valor não é enviada e não bloqueia", () => {
+    expect(
+      validarPagamentos(
+        [
+          { forma: "Dinheiro", valor: 100 },
+          { forma: "Crédito", valor: 0 },
+        ],
+        100,
+        ADQUIRENTES,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("envio com identificadores reais", () => {
+  it("crédito envia modalidade, adquirenteId real e parcelas; débito envia modalidade e adquirenteId sem parcelas", () => {
+    const { pagamentos } = montarPagamentosParaEnvio(
+      [
+        { forma: "Crédito", valor: 60, adquirenteId: "adq-stone", parcelas: 6 },
+        { forma: "Débito", valor: 40, adquirenteId: "adq-stone" },
+      ],
+      100,
+    );
+    expect(pagamentos).toEqual([
+      {
+        forma: "Crédito",
+        valor: 60,
+        modalidade: "credito",
+        adquirenteId: "adq-stone",
+        parcelas: 6,
+      },
+      { forma: "Débito", valor: 40, modalidade: "debito", adquirenteId: "adq-stone" },
+    ]);
+  });
+
+  it("dinheiro e PIX vão sem modalidade e sem adquirente (campos opcionais no contrato)", () => {
+    const { pagamentos } = montarPagamentosParaEnvio(
+      [
+        { forma: "PIX", valor: 30 },
+        { forma: "Dinheiro", valor: 70 },
+      ],
+      100,
+    );
+    expect(pagamentos).toEqual([
+      { forma: "PIX", valor: 30 },
+      { forma: "Dinheiro", valor: 70 },
+    ]);
+  });
+
+  it("regressão Fase A: cartão + dinheiro com troco — troco sai só do dinheiro e o cartão vai com seus ids", () => {
+    const { pagamentos } = montarPagamentosParaEnvio(
+      [
+        { forma: "Débito", valor: 60, adquirenteId: "adq-stone" },
+        { forma: "Dinheiro", valor: 50 },
+      ],
+      100,
+    );
+    expect(pagamentos).toEqual([
+      { forma: "Débito", valor: 60, modalidade: "debito", adquirenteId: "adq-stone" },
+      { forma: "Dinheiro", valor: 40 },
     ]);
   });
 });

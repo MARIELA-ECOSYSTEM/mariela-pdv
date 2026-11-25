@@ -1,18 +1,17 @@
 /**
  * Adquirente (maquininha) como CONFIGURAÇÃO — nunca como regra de negócio do PDV.
  *
- * A configuração real é cadastrada no Backoffice e será fornecida pela API do
- * mariela-backend. O contrato oficial ainda não existe, então estes tipos
- * descrevem apenas a forma que a interface precisa consumir:
+ * Cadastrada no Backoffice e entregue por GET /api/v1/pdv/pagamentos/adquirentes
+ * (`AdquirentePdv`, mariela-backend `pdv-pagamentos.types.ts`):
  *
- *   Adquirente
- *   ├── nome
- *   ├── observacao
+ *   Adquirente { id, nome, modalidades }
  *   └── modalidades
- *       ├── debito  → tarifa
- *       └── credito → opções de parcelamento autorizadas (com tarifa opcional)
+ *       ├── debito  → { tarifaPercentual } | null  (null = não aceita débito)
+ *       └── credito → { opcoes: [{ parcelas, tarifaPercentual }] } | null
  *
- * O frontend NUNCA calcula tarifa: só exibe o que a configuração/API informar.
+ * `id` é o `adquirenteId` exigido por POST /pdv/vendas em débito/crédito.
+ * O frontend NUNCA calcula a tarifa oficial: o backend aplica e devolve
+ * `tarifaAplicada` na venda.
  */
 
 export interface PdvAdquirenteParcelaConfig {

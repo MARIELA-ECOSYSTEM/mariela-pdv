@@ -77,7 +77,14 @@ export interface PdvVendaPayload {
     desconto?: PdvDesconto | undefined;
   }>;
   /** Nunca inclui a linha local "Fiado" — ver nota acima. */
-  pagamentos: Array<{ forma: string; valor: number; parcelas?: number | undefined }>;
+  pagamentos: Array<{
+    forma: string;
+    valor: number;
+    parcelas?: number | undefined;
+    /** Só em débito/crédito — com o `adquirenteId` real (GET /pdv/pagamentos/adquirentes). */
+    modalidade?: "debito" | "credito" | undefined;
+    adquirenteId?: string | undefined;
+  }>;
   /** Quantidade de parcelas para dividir o saldo pendente (Fiado), quando houver. */
   totalParcelas?: number | undefined;
 }
