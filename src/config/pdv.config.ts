@@ -69,6 +69,14 @@ export function validarConfiguracaoProducao(): void {
 /** Timeout de rede das chamadas HTTP do PDV. */
 export const PDV_REQUEST_TIMEOUT_MS = 15000;
 
+/**
+ * Timeout do POST /pdv/vendas — maior que o padrão: a criação roda numa
+ * transação no backend e o servidor pode estar "acordando". Mesmo assim, um
+ * timeout aqui é tratado como RESULTADO DESCONHECIDO (a venda pode ter sido
+ * registrada) e a repetição reutiliza a mesma idempotencyKey.
+ */
+export const PDV_VENDA_TIMEOUT_MS = 30000;
+
 /** Prefixo único dos endpoints do PDV no mariela-backend. */
 export const PDV_API_PREFIX = "/api/v1/pdv";
 

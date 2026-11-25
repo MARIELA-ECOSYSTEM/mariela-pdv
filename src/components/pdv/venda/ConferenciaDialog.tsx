@@ -1,9 +1,10 @@
-import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Loader2, TriangleAlert } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { formatarDecimalBr } from "@/lib/decimal";
 import { formatMoeda } from "@/lib/format";
-import { formaEhCredito, formaEhFiado } from "@/lib/pagamento";
+import { aplicarTroco, formaEhCredito, formaEhDinheiro, formaEhFiado } from "@/lib/pagamento";
 import { encontrarAdquirente, valorParcela } from "@/lib/adquirente";
 import { totaisDoItem, type PdvPagamentoTotais, type PdvVendaTotais } from "@/lib/venda-totais";
 import type { PdvAdquirente } from "@/types/adquirente";
@@ -50,8 +51,10 @@ export function ConferenciaDialog({
   pagamentoTotais,
   adquirentes = [],
   enviando,
+  pendencia,
   onVoltar,
   onConfirmar,
+  onRegistrarComoNovaVenda,
 }: {
   aberto: boolean;
   vendedorNome: string;
@@ -62,10 +65,21 @@ export function ConferenciaDialog({
   pagamentoTotais: PdvPagamentoTotais;
   adquirentes?: PdvAdquirente[];
   enviando: boolean;
+  /** Tentativa anterior desta venda ainda não resolvida (ver controle-venda.ts). */
+  pendencia?: "desconhecida" | "conflito" | undefined;
   onVoltar: () => void;
   onConfirmar: () => void;
+  onRegistrarComoNovaVenda: () => void;
 }) {
   const situacao = SITUACAO[pagamentoTotais.situacao];
+  // Valor efetivamente aplicado à venda por linha (dinheiro descontado do troco).
+  const aplicados = aplicarTroco(pagamentos, totais.total);
+  const conflito = pendencia === "conflito";
+  // Registrar como nova venda exige um segundo toque explícito.
+  const [confirmandoNova, setConfirmandoNova] = useState(false);
+  useEffect(() => {
+    if (!aberto || !conflito) setConfirmandoNova(false);
+  }, [aberto, conflito]);
 
   return (
     <Dialog open={aberto} onOpenChange={(v) => !v && !enviando && onVoltar()}>
@@ -75,6 +89,66 @@ export function ConferenciaDialog({
         </DialogHeader>
 
         <div className="space-y-5">
+          {pendencia === "desconhecida" && (
+            <div
+              role="status"
+              className="flex items-start gap-2 rounded-lg border border-primary/40 bg-primary/10 p-3 text-sm"
+            >
+              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-primary" />
+              <p>
+                A tentativa anterior desta venda ficou <strong>sem confirmação</strong>. Finalizar
+                agora usa a mesma tentativa: se ela já tiver sido registrada, o sistema{" "}
+                <strong>não registra de novo</strong>.
+              </p>
+            </div>
+          )}
+
+          {conflito && (
+            <div
+              role="alert"
+              className="space-y-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm"
+            >
+              <p className="flex items-start gap-2 font-medium text-destructive">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0" />A tentativa anterior desta venda
+                JÁ FOI registrada, com outros itens.
+              </p>
+              <p className="text-muted-foreground">
+                Confira a venda anterior no Backoffice. Os itens abaixo ainda NÃO foram vendidos. Só
+                registre como nova venda se a cliente está levando estes itens além da venda
+                anterior.
+              </p>
+              {confirmandoNova ? (
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={() => setConfirmandoNova(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={() => {
+                      setConfirmandoNova(false);
+                      onRegistrarComoNovaVenda();
+                    }}
+                  >
+                    Confirmo: é uma nova venda
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setConfirmandoNova(true)}
+                >
+                  Registrar estes itens como nova venda
+                </Button>
+              )}
+            </div>
+          )}
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border border-border p-3">
               <p className="text-[0.7rem] uppercase tracking-[0.14em] text-muted-foreground">
@@ -154,8 +228,10 @@ export function ConferenciaDialog({
               </p>
             ) : (
               <ul className="divide-y divide-border rounded-lg border border-border">
-                {pagamentos.map((p) => {
+                {pagamentos.map((p, indice) => {
                   const adquirente = encontrarAdquirente(adquirentes, p.adquirenteId);
+                  const aplicado = aplicados[indice]?.valorAplicado ?? p.valor;
+                  const comTroco = formaEhDinheiro(p.forma) && aplicado < p.valor;
                   return (
                     <li key={p.id} className="flex items-center justify-between gap-3 p-3">
                       <div className="min-w-0">
@@ -173,9 +249,10 @@ export function ConferenciaDialog({
                           {p.valorLiquido != null
                             ? ` · Líquido ${formatMoeda(p.valorLiquido)}`
                             : ""}
+                          {comTroco ? ` · Recebido ${formatMoeda(p.valor)}` : ""}
                         </p>
                       </div>
-                      <span className="text-sm font-semibold">{formatMoeda(p.valor)}</span>
+                      <span className="text-sm font-semibold">{formatMoeda(aplicado)}</span>
                     </li>
                   );
                 })}
@@ -196,7 +273,7 @@ export function ConferenciaDialog({
               )}
               <Linha rotulo="Valor pendente" valor={pagamentoTotais.pendente} />
               {pagamentoTotais.troco > 0.001 && (
-                <Linha rotulo="Troco" valor={pagamentoTotais.troco} />
+                <Linha rotulo="Troco a devolver" valor={pagamentoTotais.troco} destaque />
               )}
             </div>
           </section>
@@ -217,7 +294,11 @@ export function ConferenciaDialog({
             >
               VOLTAR E EDITAR
             </Button>
-            <Button className="h-12 flex-1 text-base" disabled={enviando} onClick={onConfirmar}>
+            <Button
+              className="h-12 flex-1 text-base"
+              disabled={enviando || conflito}
+              onClick={onConfirmar}
+            >
               {enviando ? (
                 <>
                   <Loader2 className="size-5 animate-spin" />

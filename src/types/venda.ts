@@ -29,7 +29,14 @@ export interface PdvPagamentoLinha {
   valorLiquido?: number | null | undefined;
 }
 
-export type PdvVendaEstado = "rascunho" | "processando" | "em_pagamento" | "concluida" | "erro";
+/**
+ * - `erro`: o backend RESPONDEU recusando (4xx) — a venda comprovadamente não foi criada.
+ * - `desconhecida`: sem resposta conclusiva (timeout, rede, 5xx) — a venda PODE ter sido criada.
+ * - `conflito`: o backend informou que esta idempotencyKey já registrou uma venda
+ *   DIFERENTE — ou seja, a tentativa anterior FOI registrada.
+ */
+export type PdvVendaEstado =
+  "rascunho" | "processando" | "em_pagamento" | "concluida" | "erro" | "desconhecida" | "conflito";
 
 /**
  * Corpo de POST /api/v1/pdv/vendas (espelha CriarVendaPdvDto).
@@ -75,15 +82,21 @@ export interface PdvVendaPayload {
   totalParcelas?: number | undefined;
 }
 
-/** Resposta de POST /api/v1/pdv/vendas. Campos além de `id` a confirmar no backend. */
+/**
+ * Resposta de POST /api/v1/pdv/vendas (a Venda serializada pelo backend).
+ * Só os campos usados pelo PDV; `codigo`/`valorFinal` são a confirmação
+ * oficial exibida à vendedora.
+ */
 export interface PdvVendaCriada {
   id: string;
+  codigo?: string | undefined;
+  valorFinal?: number | undefined;
   status?: string | undefined;
 }
 
 /** Estado local da tentativa de venda (somente frontend). */
 export interface PdvVendaTentativa {
-  /** Reutilizada em retries da MESMA tentativa. */
+  /** Reutilizada em TODA repetição da mesma intenção de venda (ver controle-venda.ts). */
   idempotencyKey: string;
   estado: PdvVendaEstado;
   mensagemErro?: string | undefined;
@@ -91,4 +104,14 @@ export interface PdvVendaTentativa {
   /** Total calculado no cliente apenas para exibição. */
   total?: number | undefined;
   vendaId?: string | undefined;
+  /** Código oficial devolvido pelo backend. */
+  codigo?: string | undefined;
+  /** Valor final oficial devolvido pelo backend. */
+  valorFinal?: number | undefined;
+  /**
+   * Resultado de uma tentativa anterior AINDA não resolvida com esta mesma
+   * chave: `desconhecida` (pode ter sido registrada) ou `conflito` (foi
+   * registrada com outros itens). Ausente = nada pendente de verificação.
+   */
+  pendencia?: "desconhecida" | "conflito" | undefined;
 }

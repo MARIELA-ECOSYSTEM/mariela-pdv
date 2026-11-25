@@ -6,6 +6,7 @@ import {
   formaEhCartao,
   formaEhCredito,
   formaEhDebito,
+  formaEhDinheiro,
   formaEhFiado,
   opcoesParcelas,
 } from "@/lib/pagamento";
@@ -276,7 +277,11 @@ export function PagamentoPanel({
                   <CampoDecimal
                     valor={p.valor}
                     onChange={(valor) => onAlterarValor(p.id, valor)}
-                    ariaLabel={`Valor em ${p.forma}`}
+                    ariaLabel={
+                      formaEhDinheiro(p.forma)
+                        ? "Valor recebido em dinheiro"
+                        : `Valor em ${p.forma}`
+                    }
                     className="h-9 w-28"
                   />
                   <Button
@@ -289,6 +294,12 @@ export function PagamentoPanel({
                     <Trash2 className="size-4" />
                   </Button>
                 </div>
+
+                {formaEhDinheiro(p.forma) && (
+                  <p className="text-[0.7rem] text-muted-foreground">
+                    Digite o valor recebido da cliente. O troco é calculado sozinho.
+                  </p>
+                )}
 
                 {formaEhCartao(p.forma) && (
                   <ResumoCartao
@@ -345,7 +356,7 @@ export function PagamentoPanel({
         )}
         {totais.troco > 0.001 && (
           <div className="flex items-center justify-between rounded-lg bg-accent px-3 py-2 text-sm">
-            <span className="font-medium text-accent-foreground">Troco</span>
+            <span className="font-medium text-accent-foreground">Troco a devolver</span>
             <span className="font-semibold text-accent-foreground">
               {formatMoeda(totais.troco)}
             </span>
@@ -365,9 +376,15 @@ export function PagamentoPanel({
             Sem caixa aberto: solicite a abertura pelo MARIELA Backoffice para finalizar a venda.
           </p>
         )}
+        {totais.excedente > 0 && (
+          <p role="alert" className="text-center text-[0.7rem] leading-snug text-destructive">
+            Os pagamentos passam do total em {formatMoeda(totais.excedente)}. Só dinheiro pode ter
+            troco — ajuste os valores.
+          </p>
+        )}
         <Button
           className="h-14 w-full text-base tracking-[0.12em]"
-          disabled={pagamentos.length === 0 || enviando || bloqueado}
+          disabled={pagamentos.length === 0 || enviando || bloqueado || totais.excedente > 0}
           onClick={onConferir}
         >
           {enviando ? <Loader2 className="size-5 animate-spin" /> : null}

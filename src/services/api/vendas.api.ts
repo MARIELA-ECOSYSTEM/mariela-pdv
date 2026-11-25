@@ -18,7 +18,7 @@
  * backend recalcular contra o preço real dele — nunca um R$ pré-calculado
  * aqui, que poderia divergir se o preço mudou entre a busca e a venda.
  */
-import { PDV_API_PREFIX } from "@/config/pdv.config";
+import { PDV_API_PREFIX, PDV_VENDA_TIMEOUT_MS } from "@/config/pdv.config";
 import { PdvApiClient } from "./client";
 import type { PdvVendasPort } from "@/services/ports";
 import type { PdvDesconto } from "@/types/desconto";
@@ -40,6 +40,9 @@ export const vendasApi: PdvVendasPort = {
         desconto: paraDescontoBackend(item.desconto),
       })),
     };
-    return PdvApiClient.post<PdvVendaCriada>(`${PDV_API_PREFIX}/vendas`, corpo, { idempotencyKey });
+    return PdvApiClient.post<PdvVendaCriada>(`${PDV_API_PREFIX}/vendas`, corpo, {
+      idempotencyKey,
+      timeoutMs: PDV_VENDA_TIMEOUT_MS,
+    });
   },
 };

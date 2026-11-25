@@ -89,6 +89,20 @@ describe("pagamentos", () => {
     expect(totais.troco).toBe(50);
   });
 
+  it("valor acima do total fora do dinheiro não é troco: vira excedente", () => {
+    const totais = calcularTotaisPagamento([pagamento({ forma: "PIX", valor: 550 })], 500);
+    expect(totais.troco).toBe(0);
+    expect(totais.excedente).toBe(50);
+  });
+
+  it("valor recebido em dinheiro menor que o total deixa pendente, sem troco", () => {
+    const totais = calcularTotaisPagamento([pagamento({ valor: 300 })], 500);
+    expect(totais.pendente).toBe(200);
+    expect(totais.troco).toBe(0);
+    expect(totais.excedente).toBe(0);
+    expect(totais.situacao).toBe("parcial");
+  });
+
   it("tarifa e valor líquido só entram quando o backend informar", () => {
     const totais = calcularTotaisPagamento(
       [pagamento({ valor: 600, parcelas: 6, tarifa: 18, valorLiquido: 582 })],

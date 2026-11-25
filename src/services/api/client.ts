@@ -23,6 +23,8 @@ export interface PdvRequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   /** Chave de idempotência (ex.: criação de venda). */
   idempotencyKey?: string;
+  /** Timeout próprio desta chamada (padrão: PDV_REQUEST_TIMEOUT_MS). */
+  timeoutMs?: number;
   /** Uso interno do retry pós-refresh. */
   _retried?: boolean;
 }
@@ -123,9 +125,9 @@ async function renovarSessao(): Promise<boolean> {
 
 export async function pdvRequest<T>(path: string, options: PdvRequestOptions = {}): Promise<T> {
   const baseUrl = assertApiConfigurada();
-  const { body, idempotencyKey, headers, _retried, ...rest } = options;
+  const { body, idempotencyKey, headers, timeoutMs, _retried, ...rest } = options;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), PDV_REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs ?? PDV_REQUEST_TIMEOUT_MS);
 
   const token = PdvTokenStorage.getAccessToken();
 

@@ -3,7 +3,7 @@
  * autoridade ao backend: servem para o operador conferir a venda na tela.
  */
 import { arredondarCentavos, descontoEmValor } from "@/lib/desconto";
-import { formaEhFiado } from "@/lib/pagamento";
+import { calcularTroco, formaEhFiado } from "@/lib/pagamento";
 import type { PdvItemCarrinho } from "@/types/carrinho";
 import type { PdvDesconto } from "@/types/desconto";
 import type { PdvPagamentoLinha } from "@/types/venda";
@@ -67,7 +67,10 @@ export type PdvSituacaoPagamento = "pago" | "parcial" | "pendente" | "fiado";
 export interface PdvPagamentoTotais {
   recebido: number;
   pendente: number;
+  /** Troco — só existe a partir do dinheiro recebido. */
   troco: number;
+  /** Valor acima do total que não é dinheiro (não vira troco). > 0 = pagamento inválido. */
+  excedente: number;
   tarifaTotal: number;
   liquidoTotal: number;
   /** Soma das linhas em FIADO (valor a receber depois da venda). */
@@ -87,7 +90,7 @@ export function calcularTotaisPagamento(
 ): PdvPagamentoTotais {
   const recebido = arredondarCentavos(pagamentos.reduce((soma, p) => soma + (p.valor || 0), 0));
   const pendente = arredondarCentavos(Math.max(0, total - recebido));
-  const troco = arredondarCentavos(Math.max(0, recebido - total));
+  const { troco, excedente } = calcularTroco(pagamentos, total);
   const tarifaTotal = arredondarCentavos(pagamentos.reduce((soma, p) => soma + (p.tarifa ?? 0), 0));
   const liquidoTotal = arredondarCentavos(
     pagamentos.reduce((soma, p) => soma + ((p.valorLiquido ?? p.valor) || 0), 0),
@@ -105,5 +108,15 @@ export function calcularTotaisPagamento(
         : recebido > 0
           ? "parcial"
           : "pendente";
-  return { recebido, pendente, troco, tarifaTotal, liquidoTotal, fiado, pagoAgora, situacao };
+  return {
+    recebido,
+    pendente,
+    troco,
+    excedente,
+    tarifaTotal,
+    liquidoTotal,
+    fiado,
+    pagoAgora,
+    situacao,
+  };
 }

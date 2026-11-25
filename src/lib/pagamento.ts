@@ -19,6 +19,63 @@ export function formaEhCartao(forma: string): boolean {
   return formaEhCredito(forma) || formaEhDebito(forma);
 }
 
+/** Dinheiro: a única forma em que o valor recebido pode passar do total (troco). */
+export function formaEhDinheiro(forma: string): boolean {
+  return /dinheiro/i.test(forma);
+}
+
+function centavos(valor: number): number {
+  return Number.isFinite(valor) && valor > 0 ? Math.round(valor * 100) : 0;
+}
+
+export interface PdvTroco {
+  /** Valor a devolver à cliente — sai sempre do dinheiro recebido. */
+  troco: number;
+  /**
+   * Valor acima do total que NÃO pode virar troco (porque não há dinheiro
+   * suficiente para absorvê-lo — ex.: PIX/cartão acima do total). > 0 =
+   * pagamento inválido, a venda não pode ser conferida.
+   */
+  excedente: number;
+}
+
+/**
+ * O valor digitado numa linha de Dinheiro é o RECEBIDO da cliente. O que
+ * passa do total da venda vira troco, limitado ao total recebido em dinheiro.
+ * Linhas Fiado contam como cobertura (mesma regra da tela).
+ */
+export function calcularTroco(
+  pagamentos: Array<{ forma: string; valor: number }>,
+  total: number,
+): PdvTroco {
+  const cobertura = pagamentos.reduce((soma, p) => soma + centavos(p.valor), 0);
+  const excesso = Math.max(0, cobertura - centavos(total));
+  const dinheiro = pagamentos
+    .filter((p) => formaEhDinheiro(p.forma))
+    .reduce((soma, p) => soma + centavos(p.valor), 0);
+  const troco = Math.min(excesso, dinheiro);
+  return { troco: troco / 100, excedente: (excesso - troco) / 100 };
+}
+
+/**
+ * Valor APLICADO à venda de cada linha: o troco é descontado das linhas de
+ * Dinheiro (da última para a primeira); as demais ficam como estão.
+ */
+export function aplicarTroco<T extends { forma: string; valor: number }>(
+  pagamentos: T[],
+  total: number,
+): Array<T & { valorAplicado: number }> {
+  let restante = centavos(calcularTroco(pagamentos, total).troco);
+  const aplicados = pagamentos.map((p) => centavos(p.valor));
+  for (let i = pagamentos.length - 1; i >= 0 && restante > 0; i -= 1) {
+    if (!formaEhDinheiro(pagamentos[i]!.forma)) continue;
+    const desconto = Math.min(aplicados[i]!, restante);
+    aplicados[i] = aplicados[i]! - desconto;
+    restante -= desconto;
+  }
+  return pagamentos.map((p, i) => ({ ...p, valorAplicado: aplicados[i]! / 100 }));
+}
+
 /**
  * FIADO: o cliente não paga no ato e fica com saldo a receber. O frontend
  * apenas representa essa intenção (valor pendente e nº de parcelas); as regras
@@ -60,17 +117,26 @@ export interface PdvPagamentosParaEnvio {
  * `valorPendente` (valorFinal − soma dos pagamentos reais enviados) e gera as
  * parcelas a partir de `totalParcelas` — enviar a linha Fiado como pagamento
  * faria o backend registrar a venda como totalmente paga.
+ *
+ * Dinheiro com troco: envia o valor APLICADO (recebido − troco), nunca o
+ * recebido — o backend recusa pagamentos que somem mais que o valor final
+ * ("A soma dos pagamentos não pode exceder o valor final"). O troco nunca vai
+ * no payload. Linhas que ficam com valor zero não são enviadas (o DTO exige
+ * valor positivo).
  */
 export function montarPagamentosParaEnvio(
   pagamentos: Array<{ forma: string; valor: number; parcelas?: number | undefined }>,
+  total: number,
 ): PdvPagamentosParaEnvio {
-  const reais = pagamentos.filter((p) => !formaEhFiado(p.forma));
+  const reais = aplicarTroco(pagamentos, total).filter(
+    (p) => !formaEhFiado(p.forma) && p.valorAplicado > 0,
+  );
   const linhaFiado = pagamentos.find((p) => formaEhFiado(p.forma));
 
   return {
     pagamentos: reais.map((p) => ({
       forma: p.forma,
-      valor: p.valor,
+      valor: p.valorAplicado,
       ...(p.parcelas ? { parcelas: p.parcelas } : {}),
     })),
     ...(linhaFiado?.parcelas ? { totalParcelas: linhaFiado.parcelas } : {}),

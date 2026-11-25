@@ -23,6 +23,7 @@ import { arredondarCentavos } from "@/lib/desconto";
 import { calcularTotaisPagamento, calcularTotaisVenda } from "@/lib/venda-totais";
 import { gerarUuid } from "@/lib/uuid";
 import { pdvDataSource } from "@/services/pdv-data-source";
+import { criarControleVenda, type ControleVenda } from "@/features/venda/controle-venda";
 
 import type { RequestState } from "@/types/api";
 import type { PdvProduto } from "@/types/produto";
@@ -191,24 +192,31 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
   const [etapa, setEtapa] = useState<PdvEtapa>("carrinho");
 
   // ---- Venda ----
+  // A chave de idempotência e o resultado da tentativa vivem no controle de
+  // venda (ver features/venda/controle-venda.ts) — nunca são recriados aqui.
   const [conferenciaAberta, setConferenciaAberta] = useState(false);
   const [tentativa, setTentativa] = useState<PdvVendaTentativa | null>(null);
-
-  function enviarVenda(idempotencyKey: string) {
-    setTentativa({
-      idempotencyKey,
-      estado: "processando",
-      itens: carrinho.itens,
-      total,
+  const controleRef = useRef<ControleVenda | null>(null);
+  if (!controleRef.current) {
+    controleRef.current = criarControleVenda({
+      enviar: (payload, chave) => pdvDataSource.vendas.criar(payload, chave),
+      gerarChave: gerarUuid,
+      aoMudar: setTentativa,
     });
+  }
+  const controleVenda = controleRef.current;
 
+  function montarPayload(): PdvVendaPayload {
     // POST /api/v1/pdv/vendas — o frontend envia apenas intenção.
-    // Preço, estoque e total são autoridade do backend; troco não é enviado.
-    // A linha local "Fiado" nunca vai em `pagamentos` (ver montarPagamentosParaEnvio).
-    const { pagamentos: pagamentosParaEnvio, totalParcelas } =
-      montarPagamentosParaEnvio(pagamentos);
+    // Preço, estoque e total são autoridade do backend; troco não é enviado
+    // (dinheiro vai pelo valor aplicado). A linha local "Fiado" nunca vai em
+    // `pagamentos` (ver montarPagamentosParaEnvio).
+    const { pagamentos: pagamentosParaEnvio, totalParcelas } = montarPagamentosParaEnvio(
+      pagamentos,
+      total,
+    );
 
-    const payload: PdvVendaPayload = {
+    return {
       ...(cliente ? { clienteId: cliente.id } : {}),
       descontoVenda: descontoVenda,
       itens: carrinho.itens.map((item) => ({
@@ -221,36 +229,27 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
       pagamentos: pagamentosParaEnvio,
       ...(totalParcelas ? { totalParcelas } : {}),
     };
+  }
 
-    void (async () => {
-      try {
-        const venda = await pdvDataSource.vendas.criar(payload, idempotencyKey);
-        setConferenciaAberta(false);
-        setTentativa((atual) =>
-          atual && atual.idempotencyKey === idempotencyKey
-            ? { ...atual, estado: "concluida", vendaId: venda.id }
-            : atual,
-        );
-      } catch (error) {
-        const mensagem =
-          error instanceof Error && error.message
-            ? error.message
-            : "Não foi possível concluir a venda.";
-        setConferenciaAberta(false);
-        setTentativa((atual) =>
-          atual && atual.idempotencyKey === idempotencyKey
-            ? { ...atual, estado: "erro", mensagemErro: mensagem }
-            : atual,
-        );
-      }
-    })();
+  /**
+   * Envia (ou reenvia) a venda. O controle reaproveita a chave da tentativa
+   * atual e ignora o pedido se já houver um envio em andamento.
+   */
+  function enviarVenda() {
+    if (caixa !== "aberto") return;
+    const envio = controleVenda.finalizar(montarPayload(), { itens: carrinho.itens, total });
+    // Um único diálogo por vez: o resultado aparece no VendaDialog.
+    if (envio) setConferenciaAberta(false);
   }
 
   /** Abre a conferência — nada é enviado ao backend aqui. */
   function abrirConferencia() {
-    if (carrinho.itens.length === 0 || tentativa?.estado === "processando") return;
+    if (carrinho.itens.length === 0) return;
+    if (tentativa?.estado === "processando" || tentativa?.estado === "concluida") return;
     // Sem caixa aberto não há finalização: quem abre o caixa é o Backoffice.
     if (caixa !== "aberto") return;
+    // Valor acima do total que não pode virar troco (ex.: PIX acima do total).
+    if (pagamentoTotais.excedente > 0) return;
     setConferenciaAberta(true);
   }
 
@@ -268,18 +267,13 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     abrirConferencia();
   }
 
-  /** Confirmação definitiva: nova venda = nova idempotencyKey. */
-  function confirmarVenda() {
-    if (tentativa?.estado === "processando" || caixa !== "aberto") return;
-    enviarVenda(gerarUuid());
-  }
-
   function novaVenda() {
+    // Só renova a chave quando a venda anterior foi resolvida (concluída).
+    if (!controleVenda.iniciarNovaVenda()) return;
     carrinho.limpar();
     setCliente(null);
     setPagamentos([]);
     setDescontoVenda(DESCONTO_ZERO);
-    setTentativa(null);
     setConferenciaAberta(false);
     setEtapa("carrinho");
     buscaRef.current?.focus();
@@ -291,7 +285,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
       { tecla: "Enter", ctrl: true, acao: avancarFluxo },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [carrinho.itens.length, total, tentativa?.estado, etapa],
+    [carrinho.itens.length, total, tentativa?.estado, etapa, pagamentoTotais.excedente],
   );
   useAtalhos(atalhos, caixa === "aberto");
 
@@ -402,19 +396,18 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         pagamentos={pagamentos}
         pagamentoTotais={pagamentoTotais}
         adquirentes={adquirentes}
-
         enviando={tentativa?.estado === "processando"}
+        pendencia={tentativa?.pendencia}
         onVoltar={() => setConferenciaAberta(false)}
-        onConfirmar={confirmarVenda}
+        onConfirmar={enviarVenda}
+        onRegistrarComoNovaVenda={() => controleVenda.registrarComoNovaVenda()}
       />
 
       <VendaDialog
         tentativa={tentativa}
-        onFechar={() => setTentativa(null)}
+        onVoltarAoCarrinho={() => controleVenda.voltarAoCarrinho()}
         onNovaVenda={novaVenda}
-        onTentarNovamente={() => {
-          if (tentativa) enviarVenda(tentativa.idempotencyKey);
-        }}
+        onTentarNovamente={enviarVenda}
       />
     </div>
   );
