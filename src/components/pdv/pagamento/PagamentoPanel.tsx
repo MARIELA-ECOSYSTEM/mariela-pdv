@@ -15,7 +15,6 @@ import {
   encontrarAdquirente,
   parcelasPermitidas,
   suportaModalidade,
-  tarifaConfigurada,
   valorParcela,
 } from "@/lib/adquirente";
 import { arredondarCentavos } from "@/lib/desconto";
@@ -75,15 +74,14 @@ function ResumoFiado({
             {parcelas}x de {formatMoeda(valorParcela(pagamento.valor, parcelas))}
           </p>
         )}
-        <p>Vencimentos e cobrança seguem a configuração do Backoffice.</p>
       </div>
     </div>
   );
 }
 
 /**
- * Linha de cartão: maquininha (só as que aceitam a modalidade, vindas da API),
- * parcelamento autorizado, tarifa e líquido.
+ * Linha de cartão: maquininha (só as que aceitam a modalidade, vindas da API)
+ * e parcelamento autorizado.
  */
 function ResumoCartao({
   pagamento,
@@ -152,20 +150,9 @@ function ResumoCartaoConfigurado({
   const adquirente = encontrarAdquirente(adquirentes, pagamento.adquirenteId);
   const permitidas = parcelasPermitidas(adquirente);
   const parcelas = pagamento.parcelas ?? 1;
-
-  // Tarifa e líquido: apenas o que a API/configuração informar. Sem cálculo
-  // definitivo de tarifa no frontend — o backend é a autoridade financeira.
-  const tarifaApi = pagamento.tarifa ?? null;
-  const tarifaConfig = tarifaConfigurada(
-    adquirente,
-    credito ? "credito" : "debito",
-    pagamento.valor,
-    parcelas,
-  );
-  const tarifa = tarifaApi ?? tarifaConfig;
-  const liquido =
-    pagamento.valorLiquido ??
-    (tarifa != null ? arredondarCentavos(pagamento.valor - tarifa) : null);
+  // Tarifa, valor bruto e valor líquido são informação financeira interna da
+  // loja: não aparecem para a vendedora. O backend continua aplicando e
+  // registrando a tarifa na venda (`tarifaAplicada`); nada muda no envio.
 
   return (
     <div className="space-y-1.5 rounded-md bg-surface p-2">
@@ -220,16 +207,11 @@ function ResumoCartaoConfigurado({
         </div>
       )}
 
-      <div className="space-y-0.5 text-[0.7rem] text-muted-foreground">
-        <p>Valor bruto: {formatMoeda(pagamento.valor)}</p>
-        {credito && parcelas > 1 && pagamento.valor > 0 && (
-          <p className="font-medium text-foreground">
-            {parcelas}x de {formatMoeda(valorParcela(pagamento.valor, parcelas))}
-          </p>
-        )}
-        {tarifa != null && <p>Tarifa da maquininha: {formatMoeda(tarifa)}</p>}
-        {liquido != null && <p>Valor líquido: {formatMoeda(liquido)}</p>}
-      </div>
+      {credito && parcelas > 1 && pagamento.valor > 0 && (
+        <p className="text-[0.7rem] font-medium text-foreground">
+          {parcelas}x de {formatMoeda(valorParcela(pagamento.valor, parcelas))}
+        </p>
+      )}
     </div>
   );
 }

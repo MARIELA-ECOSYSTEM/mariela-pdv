@@ -74,14 +74,14 @@ function LoginPage() {
 
           <form onSubmit={onSubmit} className="mt-8 space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="login">Login</Label>
+              <Label htmlFor="login">Código da vendedora</Label>
               <Input
                 id="login"
                 autoFocus
                 autoComplete="username"
                 value={login}
                 onChange={(e) => setLogin(e.target.value)}
-                placeholder="seu.login"
+                placeholder="VEN-0001"
                 className="h-12"
                 disabled={carregando}
               />
@@ -101,7 +101,10 @@ function LoginPage() {
               />
             </div>
 
-            {erro && status === "erro" && (
+            {/* `erro` só existe após falha de login (status "erro") ou sessão
+                expirada (status "deslogado") e é limpo ao entrar/sair — por isso
+                é exibido nos dois casos. */}
+            {erro && (status === "erro" || status === "deslogado") && (
               <p
                 role="alert"
                 className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive"
