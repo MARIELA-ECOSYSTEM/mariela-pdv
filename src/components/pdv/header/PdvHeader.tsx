@@ -1,7 +1,6 @@
-import { CircleDot, History, LogOut, Moon, Sun, UserRound } from "lucide-react";
+import { CircleDot, LogOut, Moon, Sun, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MarielaMarca } from "@/components/pdv/MarielaMarca";
-import { EtapaIndicador, type PdvEtapa } from "@/components/pdv/fluxo/EtapaIndicador";
 import { usePdvTema } from "@/features/tema/PdvTemaProvider";
 import type { PdvCaixaEstado } from "@/types/caixa";
 import type { PdvCliente } from "@/types/cliente";
@@ -15,23 +14,23 @@ const rotuloCaixa: Record<PdvCaixaEstado, string> = {
   erro: "Caixa indisponível",
 };
 
+/**
+ * Cabeçalho do PDV. A cliente da venda é escolhida, trocada ou removida
+ * SOMENTE aqui (diálogo de busca), em qualquer momento da venda.
+ */
 export function PdvHeader({
   vendedorNome,
   cliente,
   caixa,
-  etapa,
-  onIrParaEtapa,
   onAlterarCliente,
-  onAbrirMinhasVendas,
+  onRemoverCliente,
   onSair,
 }: {
   vendedorNome: string;
   cliente: PdvCliente | null;
   caixa: PdvCaixaEstado;
-  etapa: PdvEtapa;
-  onIrParaEtapa: (etapa: PdvEtapa) => void;
   onAlterarCliente: () => void;
-  onAbrirMinhasVendas: () => void;
+  onRemoverCliente: () => void;
   onSair: () => void;
 }) {
   const { tema, alternarTema } = usePdvTema();
@@ -77,13 +76,18 @@ export function PdvHeader({
             <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={onAlterarCliente}>
               {cliente ? "Alterar" : "Selecionar"}
             </Button>
+            {cliente && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs text-muted-foreground hover:text-destructive"
+                onClick={onRemoverCliente}
+              >
+                Remover
+              </Button>
+            )}
           </div>
         </div>
-
-        <Button variant="outline" size="sm" onClick={onAbrirMinhasVendas}>
-          <History className="size-4" />
-          Minhas vendas
-        </Button>
 
         <Button
           variant="ghost"
@@ -101,12 +105,6 @@ export function PdvHeader({
           Sair
         </Button>
       </div>
-
-      <EtapaIndicador
-        etapa={etapa}
-        onIrPara={onIrParaEtapa}
-        className="justify-center border-t border-b-0 px-4 py-2"
-      />
     </header>
   );
 }

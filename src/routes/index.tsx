@@ -6,13 +6,10 @@ import { CatalogoProdutos } from "@/components/pdv/catalogo/CatalogoProdutos";
 import { ProdutoDialog } from "@/components/pdv/produto/ProdutoDialog";
 import { CarrinhoPanel } from "@/components/pdv/carrinho/CarrinhoPanel";
 import { ClienteDialog } from "@/components/pdv/cliente/ClienteDialog";
-import { ClientePanel } from "@/components/pdv/cliente/ClientePanel";
-import type { PdvEtapa } from "@/components/pdv/fluxo/EtapaIndicador";
 import { PagamentoPanel } from "@/components/pdv/pagamento/PagamentoPanel";
 import { CaixaAviso } from "@/components/pdv/caixa/CaixaAviso";
 import { VendaDialog } from "@/components/pdv/venda/VendaDialog";
 import { ConferenciaDialog } from "@/components/pdv/venda/ConferenciaDialog";
-import { MinhasVendasDialog } from "@/components/pdv/venda/MinhasVendasDialog";
 import { usePdvAuth } from "@/features/auth/PdvAuthProvider";
 import { useCarrinho } from "@/features/carrinho/useCarrinho";
 import { useAtalhos } from "@/features/atalhos/useAtalhos";
@@ -207,7 +204,6 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
   // ---- Produto / carrinho / cliente ----
   const [produtoSelecionado, setProdutoSelecionado] = useState<PdvProduto | null>(null);
   const [clienteAberto, setClienteAberto] = useState(false);
-  const [minhasVendasAberto, setMinhasVendasAberto] = useState(false);
   const [cliente, setCliente] = useState<PdvCliente | null>(null);
   const carrinho = useCarrinho();
 
@@ -285,7 +281,9 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
   }
 
   // ---- Etapa do fluxo (apenas UX; nada de estado da venda é perdido) ----
-  const [etapa, setEtapa] = useState<PdvEtapa>("carrinho");
+  // Painel lateral: carrinho ou pagamento. A cliente é escolhida pelo
+  // cabeçalho, em qualquer momento — não existe etapa própria para ela.
+  const [etapa, setEtapa] = useState<"carrinho" | "pagamento">("carrinho");
 
   // ---- Venda ----
   // A chave de idempotência e o resultado da tentativa vivem no controle de
@@ -373,10 +371,6 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
 
   /** Ctrl+Enter avança no fluxo: carrinho → pagamento → conferência. */
   function avancarFluxo() {
-    if (etapa === "cliente") {
-      setEtapa("carrinho");
-      return;
-    }
     if (carrinho.itens.length === 0) return;
     if (etapa === "carrinho") {
       setEtapa("pagamento");
@@ -422,10 +416,8 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         vendedorNome={vendedorNome}
         cliente={cliente}
         caixa={caixa}
-        etapa={etapa}
-        onIrParaEtapa={setEtapa}
         onAlterarCliente={() => setClienteAberto(true)}
-        onAbrirMinhasVendas={() => setMinhasVendasAberto(true)}
+        onRemoverCliente={() => setCliente(null)}
         onSair={onSair}
       />
       <CaixaAviso
@@ -454,14 +446,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         </div>
 
         <aside className="surface-panel flex min-h-0 flex-col overflow-hidden">
-          {etapa === "cliente" ? (
-            <ClientePanel
-              cliente={cliente}
-              onSelecionar={setCliente}
-              onRemover={() => setCliente(null)}
-              onSeguirParaCarrinho={() => setEtapa("carrinho")}
-            />
-          ) : etapa === "carrinho" ? (
+          {etapa === "carrinho" ? (
             <CarrinhoPanel
               itens={carrinho.itens}
               descontoVenda={descontoVenda}
@@ -516,12 +501,6 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         aberto={clienteAberto}
         onFechar={() => setClienteAberto(false)}
         onSelecionar={setCliente}
-      />
-
-      <MinhasVendasDialog
-        aberto={minhasVendasAberto}
-        vendedorNome={vendedorNome}
-        onFechar={() => setMinhasVendasAberto(false)}
       />
 
       {/* Conferência antes do POST — "Voltar e editar" preserva toda a venda. */}

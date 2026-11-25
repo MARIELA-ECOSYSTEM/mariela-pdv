@@ -10,8 +10,7 @@ import type { RequestState } from "@/types/api";
 
 /**
  * Busca de clientes — única implementação da pesquisa (GET /api/v1/pdv/clientes
- * pela porta de dados). Reutilizada pelo ClienteDialog e pela etapa Cliente,
- * para não duplicar lógica.
+ * pela porta de dados). Usada pelo ClienteDialog, aberto pelo cabeçalho.
  */
 export function ClienteBusca({
   ativo = true,
