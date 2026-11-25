@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { calcularTotaisPagamento, calcularTotaisVenda, totaisDoItem } from "./venda-totais";
+import {
+  calcularTotaisPagamento,
+  calcularTotaisVenda,
+  limitarDescontosDaVenda,
+  totaisDoItem,
+} from "./venda-totais";
 import type { PdvItemCarrinho } from "@/types/carrinho";
 import type { PdvPagamentoLinha } from "@/types/venda";
 
@@ -59,6 +64,59 @@ describe("desconto do subtotal", () => {
     expect(totais.subtotalAposItens).toBe(180);
     expect(totais.descontoVenda).toBe(18);
     expect(totais.total).toBe(162);
+  });
+});
+
+describe("limitarDescontosDaVenda (desconto coerente com o carrinho atual)", () => {
+  it("desconto da venda em R$ maior que o subtotal após remover um item é reduzido ao subtotal", () => {
+    // Carrinho tinha 2 peças de R$ 100 e desconto de R$ 150; uma peça saiu.
+    const r = limitarDescontosDaVenda([item({ quantidade: 1 })], { tipo: "monetario", valor: 150 });
+    expect(r.descontoVenda).toEqual({ tipo: "monetario", valor: 100 });
+    expect(calcularTotaisVenda(r.itens, r.descontoVenda).total).toBe(0);
+  });
+
+  it("a base do desconto da venda é o subtotal APÓS os descontos dos itens", () => {
+    const r = limitarDescontosDaVenda(
+      [item({ quantidade: 2, desconto: { tipo: "monetario", valor: 50 } })],
+      { tipo: "monetario", valor: 200 },
+    );
+    expect(r.descontoVenda.valor).toBe(150);
+  });
+
+  it("desconto do item em R$ maior que a linha é reduzido ao valor da linha", () => {
+    const r = limitarDescontosDaVenda(
+      [item({ quantidade: 1, desconto: { tipo: "monetario", valor: 300 } })],
+      { tipo: "monetario", valor: 0 },
+    );
+    expect(r.itens[0]?.desconto).toEqual({ tipo: "monetario", valor: 100 });
+  });
+
+  it("desconto inválido (negativo, NaN, % acima de 100) vira um valor aceito pelo backend", () => {
+    expect(
+      limitarDescontosDaVenda([item()], { tipo: "monetario", valor: -10 }).descontoVenda.valor,
+    ).toBe(0);
+    expect(
+      limitarDescontosDaVenda([item()], { tipo: "monetario", valor: Number.NaN }).descontoVenda
+        .valor,
+    ).toBe(0);
+    expect(
+      limitarDescontosDaVenda([item()], { tipo: "percentual", valor: 150 }).descontoVenda.valor,
+    ).toBe(100);
+  });
+
+  it("descontos válidos passam inalterados", () => {
+    const r = limitarDescontosDaVenda(
+      [item({ quantidade: 3, desconto: { tipo: "percentual", valor: 10 } })],
+      { tipo: "monetario", valor: 20 },
+    );
+    expect(r.itens[0]?.desconto).toEqual({ tipo: "percentual", valor: 10 });
+    expect(r.descontoVenda).toEqual({ tipo: "monetario", valor: 20 });
+  });
+
+  it("carrinho vazio zera desconto em R$", () => {
+    expect(limitarDescontosDaVenda([], { tipo: "monetario", valor: 30 }).descontoVenda.valor).toBe(
+      0,
+    );
   });
 });
 

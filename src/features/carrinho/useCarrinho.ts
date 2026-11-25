@@ -28,7 +28,13 @@ export function useCarrinho() {
         if (i.linhaId !== linhaId) return [i];
         if (quantidade <= 0) return [];
         const limite = i.estoqueDisponivel ?? quantidade;
-        return [{ ...i, quantidade: Math.min(quantidade, limite) }];
+        const novaQuantidade = Math.min(quantidade, limite);
+        // Desconto em R$ não pode passar do novo valor da linha (o backend
+        // recusa): reajusta sozinho, sem a vendedora precisar corrigir.
+        const desconto = i.desconto
+          ? limitarDesconto(i.precoUnitario * novaQuantidade, i.desconto)
+          : undefined;
+        return [{ ...i, quantidade: novaQuantidade, ...(desconto ? { desconto } : {}) }];
       }),
     );
   }, []);

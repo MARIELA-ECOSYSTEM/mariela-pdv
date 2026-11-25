@@ -9,6 +9,7 @@
  * configuração do Backoffice pela API. Aqui não existe cálculo fixo de tarifa.
  */
 import { encontrarAdquirente, parcelasPermitidas, suportaModalidade } from "@/lib/adquirente";
+import { formatMoeda } from "@/lib/format";
 import type { PdvAdquirente, PdvModalidadeCartao } from "@/types/adquirente";
 
 export function formaEhCredito(forma: string): boolean {
@@ -32,6 +33,16 @@ export function modalidadeCartao(forma: string): PdvModalidadeCartao | undefined
   if (formaEhCredito(forma)) return "credito";
   if (formaEhDebito(forma)) return "debito";
   return undefined;
+}
+
+/**
+ * Forma que fala em cartão mas não diz se é débito ou crédito (ex.: "Cartão").
+ * O PDV NÃO adivinha a modalidade: enviar sem modalidade faria o backend
+ * registrar um pagamento de cartão sem maquininha e sem tarifa. Fica
+ * indisponível até o cadastro no Backoffice deixar a modalidade explícita.
+ */
+export function formaCartaoAmbigua(forma: string): boolean {
+  return /cart[aã]o/i.test(forma) && !modalidadeCartao(forma);
 }
 
 /** Dinheiro: a única forma em que o valor recebido pode passar do total (troco). */
@@ -65,11 +76,17 @@ export function formasParaExibir(formas: string[]): string[] {
 
 /**
  * Problema que impede conferir a venda, em linguagem da vendedora — ou null.
- * Espelha as exigências do backend para cartão (`validarPagamentoEstruturado`):
- * adquirente obrigatória, adquirente que aceite a modalidade e, no crédito,
- * parcelamento configurado nela. O backend continua sendo a autoridade.
+ * O backend continua sendo a autoridade; aqui só se evita enviar o que ele
+ * recusaria ou registraria de forma diferente do que a tela mostra:
+ *  - forma de cartão ambígua (sem débito/crédito no nome);
+ *  - cartão (`validarPagamentoEstruturado`): adquirente obrigatória, que aceite
+ *    a modalidade e, no crédito, parcelamento configurado nela;
+ *  - pagamento abaixo do total sem a diferença lançada no Fiado: o backend
+ *    transformaria a falta em saldo pendente (venda fiada) sem ninguém ver;
+ *  - Fiado sem cliente: o backend exige cliente para saldo pendente
+ *    ("Cliente é obrigatório para vendas com saldo pendente").
  * Linhas sem valor (ex.: dinheiro todo absorvido pelo troco) não são enviadas
- * e por isso não são validadas.
+ * e por isso não passam pelas regras de cartão.
  */
 export function validarPagamentos(
   pagamentos: Array<{
@@ -80,7 +97,13 @@ export function validarPagamentos(
   }>,
   total: number,
   adquirentes: PdvAdquirente[],
+  temCliente = false,
 ): string | null {
+  const ambigua = pagamentos.find((p) => formaCartaoAmbigua(p.forma));
+  if (ambigua) {
+    return `“${ambigua.forma}” não informa se é débito ou crédito. Remova este pagamento e use uma forma de débito ou crédito.`;
+  }
+
   for (const p of aplicarTroco(pagamentos, total)) {
     const modalidade = modalidadeCartao(p.forma);
     if (!modalidade || p.valorAplicado <= 0) continue;
@@ -92,6 +115,19 @@ export function validarPagamentos(
     if (modalidade === "credito" && !parcelasPermitidas(adquirente).includes(p.parcelas ?? 0)) {
       return `Escolha o parcelamento do pagamento em ${p.forma}.`;
     }
+  }
+
+  const cobertura = pagamentos.reduce((soma, p) => soma + centavos(p.valor), 0);
+  const falta = centavos(total) - cobertura;
+  if (falta > 0) {
+    return `Falta receber ${formatMoeda(falta / 100)}. Adicione outro pagamento ou lance a diferença no Fiado.`;
+  }
+
+  const fiado = pagamentos
+    .filter((p) => formaEhFiado(p.forma))
+    .reduce((soma, p) => soma + centavos(p.valor), 0);
+  if (fiado > 0 && !temCliente) {
+    return "Venda no Fiado precisa de cliente. Selecione a cliente antes de conferir.";
   }
   return null;
 }

@@ -2,7 +2,7 @@
  * Totais de APRESENTAÇÃO da venda. Nenhum destes números é enviado como
  * autoridade ao backend: servem para o operador conferir a venda na tela.
  */
-import { arredondarCentavos, descontoEmValor } from "@/lib/desconto";
+import { arredondarCentavos, descontoEmValor, limitarDesconto } from "@/lib/desconto";
 import { calcularTroco, formaEhFiado } from "@/lib/pagamento";
 import type { PdvItemCarrinho } from "@/types/carrinho";
 import type { PdvDesconto } from "@/types/desconto";
@@ -60,6 +60,27 @@ export function calcularTotaisVenda(
     descontoVenda: descontoVendaValor,
     total: arredondarCentavos(subtotalAposItens - descontoVendaValor),
   };
+}
+
+/**
+ * Descontos ajustados ao carrinho ATUAL, na mesma regra do backend
+ * (`resolverDesconto`): nunca negativo, % até 100 e R$ até a base sobre a
+ * qual incide — base do item = preço × quantidade; base da venda = subtotal
+ * após os descontos dos itens. Usado para manter o estado coerente quando o
+ * carrinho muda e para garantir que o payload envie exatamente o desconto
+ * que a tela mostra.
+ */
+export function limitarDescontosDaVenda(
+  itens: PdvItemCarrinho[],
+  descontoVenda: PdvDesconto,
+): { itens: PdvItemCarrinho[]; descontoVenda: PdvDesconto } {
+  const ajustados = itens.map((item) =>
+    item.desconto
+      ? { ...item, desconto: limitarDesconto(item.precoUnitario * item.quantidade, item.desconto) }
+      : item,
+  );
+  const base = calcularTotaisVenda(ajustados, undefined).subtotalAposItens;
+  return { itens: ajustados, descontoVenda: limitarDesconto(base, descontoVenda) };
 }
 
 export type PdvSituacaoPagamento = "pago" | "parcial" | "pendente" | "fiado";

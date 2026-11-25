@@ -25,11 +25,16 @@ import {
   validarPagamentos,
 } from "@/lib/pagamento";
 import { ajustarParcelas, encontrarAdquirente, suportaModalidade } from "@/lib/adquirente";
-import { arredondarCentavos } from "@/lib/desconto";
-import { calcularTotaisPagamento, calcularTotaisVenda } from "@/lib/venda-totais";
+import { arredondarCentavos, limitarDesconto } from "@/lib/desconto";
+import {
+  calcularTotaisPagamento,
+  calcularTotaisVenda,
+  limitarDescontosDaVenda,
+} from "@/lib/venda-totais";
 import { gerarUuid } from "@/lib/uuid";
 import { pdvDataSource } from "@/services/pdv-data-source";
 import { criarControleVenda, type ControleVenda } from "@/features/venda/controle-venda";
+import { consultarEstadoCaixa } from "@/features/caixa/estado-caixa";
 
 import type { RequestState } from "@/types/api";
 import type { PdvProduto } from "@/types/produto";
@@ -82,22 +87,35 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
   // ---- Caixa: apenas leitura de GET /api/v1/pdv/caixa/atual ----
   // O PDV NÃO abre caixa: a abertura é exclusiva do MARIELA Backoffice e o
   // mesmo caixa é compartilhado por todos os vendedores do PDV.
+  // Consultado ao abrir, a pedido da vendedora e antes de cada conferência
+  // (ver features/caixa/estado-caixa.ts) — sem polling.
   const [caixa, setCaixa] = useState<PdvCaixaEstado>("carregando");
+  const [verificandoCaixa, setVerificandoCaixa] = useState(false);
+  const verificandoCaixaRef = useRef(false);
   useEffect(() => {
     let ativo = true;
-    void (async () => {
-      try {
-        const atual = await pdvDataSource.caixa.atual();
-        if (!ativo) return;
-        setCaixa(atual ? "aberto" : "fechado");
-      } catch {
-        if (ativo) setCaixa("erro");
-      }
-    })();
+    void consultarEstadoCaixa(pdvDataSource.caixa).then((estado) => {
+      if (ativo) setCaixa(estado);
+    });
     return () => {
       ativo = false;
     };
   }, []);
+
+  /** Reconsulta o caixa (uma requisição); devolve o estado atualizado. */
+  async function verificarCaixa(): Promise<PdvCaixaEstado | null> {
+    if (verificandoCaixaRef.current) return null;
+    verificandoCaixaRef.current = true;
+    setVerificandoCaixa(true);
+    try {
+      const estado = await consultarEstadoCaixa(pdvDataSource.caixa);
+      setCaixa(estado);
+      return estado;
+    } finally {
+      verificandoCaixaRef.current = false;
+      setVerificandoCaixa(false);
+    }
+  }
 
   // ---- Catálogo: GET /api/v1/pdv/produtos (via porta de dados) ----
   const [busca, setBusca] = useState("");
@@ -158,6 +176,16 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     [carrinho.itens, descontoVenda],
   );
   const total = totais.total;
+  // Carrinho mudou (quantidade, remoção, inclusão): um desconto em R$ maior que
+  // o novo subtotal é reduzido sozinho ao máximo possível — o backend recusa
+  // desconto acima da base e a vendedora não precisa corrigir à mão.
+  const subtotalAposItens = totais.subtotalAposItens;
+  useEffect(() => {
+    setDescontoVenda((atual) => {
+      const limitado = limitarDesconto(subtotalAposItens, atual);
+      return limitado.valor === atual.valor ? atual : limitado;
+    });
+  }, [subtotalAposItens]);
 
   // ---- Pagamentos ----
   // Formas e adquirentes vêm da API (GET /pdv/pagamentos/*), nunca de lista fixa.
@@ -168,10 +196,12 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     () => calcularTotaisPagamento(pagamentos, total),
     [pagamentos, total],
   );
-  // Pagamento incompleto (ex.: cartão sem maquininha) impede conferir a venda.
+  // Pagamento incompleto (cartão sem maquininha, falta receber, Fiado sem
+  // cliente, cartão ambíguo) impede conferir a venda.
+  const temCliente = !!cliente;
   const problemaPagamento = useMemo(
-    () => validarPagamentos(pagamentos, total, adquirentes),
-    [pagamentos, total, adquirentes],
+    () => validarPagamentos(pagamentos, total, adquirentes, temCliente),
+    [pagamentos, total, adquirentes, temCliente],
   );
 
   function adicionarPagamento(forma: string) {
@@ -238,11 +268,13 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
       pagamentos,
       total,
     );
+    // Descontos sempre dentro da base atual: envia exatamente o que a tela mostra.
+    const descontos = limitarDescontosDaVenda(carrinho.itens, descontoVenda);
 
     return {
       ...(cliente ? { clienteId: cliente.id } : {}),
-      descontoVenda: descontoVenda,
-      itens: carrinho.itens.map((item) => ({
+      descontoVenda: descontos.descontoVenda,
+      itens: descontos.itens.map((item) => ({
         produtoId: item.produtoId,
         varianteId: item.varianteId,
         tamanhoId: item.tamanhoId,
@@ -265,15 +297,20 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
     if (envio) setConferenciaAberta(false);
   }
 
-  /** Abre a conferência — nada é enviado ao backend aqui. */
-  function abrirConferencia() {
+  /**
+   * Abre a conferência — nada é enviado ao backend aqui. Antes, reconsulta o
+   * caixa (uma requisição): ele pode ter sido fechado/aberto no Backoffice
+   * desde que o PDV foi aberto.
+   */
+  async function abrirConferencia() {
     if (carrinho.itens.length === 0) return;
     if (tentativa?.estado === "processando" || tentativa?.estado === "concluida") return;
-    // Sem caixa aberto não há finalização: quem abre o caixa é o Backoffice.
-    if (caixa !== "aberto") return;
     // Valor acima do total que não pode virar troco (ex.: PIX acima do total).
     if (pagamentoTotais.excedente > 0) return;
     if (problemaPagamento) return;
+    // Sem caixa aberto não há finalização: quem abre o caixa é o Backoffice.
+    const estadoCaixa = await verificarCaixa();
+    if (estadoCaixa !== "aberto") return;
     setConferenciaAberta(true);
   }
 
@@ -288,7 +325,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
       setEtapa("pagamento");
       return;
     }
-    abrirConferencia();
+    void abrirConferencia();
   }
 
   function novaVenda() {
@@ -334,7 +371,11 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         onAbrirMinhasVendas={() => setMinhasVendasAberto(true)}
         onSair={onSair}
       />
-      <CaixaAviso estado={caixa} />
+      <CaixaAviso
+        estado={caixa}
+        verificando={verificandoCaixa}
+        onVerificar={() => void verificarCaixa()}
+      />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 lg:grid-cols-[1fr_400px]">
         <div className="flex min-h-0 flex-col">
@@ -379,7 +420,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
               problema={problemaPagamento}
               onRecarregarOpcoes={opcoesPagamento.recarregar}
               cliente={cliente}
-              enviando={tentativa?.estado === "processando"}
+              enviando={tentativa?.estado === "processando" || verificandoCaixa}
               bloqueado={bloqueado}
               onAdicionar={adicionarPagamento}
               onAlterarValor={(id, valor) =>

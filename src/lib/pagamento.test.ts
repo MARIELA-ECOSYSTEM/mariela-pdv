@@ -3,6 +3,7 @@ import type { PdvAdquirente } from "@/types/adquirente";
 import {
   aplicarTroco,
   calcularTroco,
+  formaCartaoAmbigua,
   formasParaExibir,
   modalidadeCartao,
   validarPagamentos,
@@ -310,6 +311,111 @@ describe("validarPagamentos (pagamento incompleto)", () => {
         ADQUIRENTES,
       ),
     ).toBeNull();
+  });
+});
+
+describe("forma de cartão ambígua (Fase C)", () => {
+  it("“Cartão” sem débito/crédito é ambígua; formas com modalidade reconhecida não são", () => {
+    expect(formaCartaoAmbigua("Cartão")).toBe(true);
+    expect(formaCartaoAmbigua("cartao")).toBe(true);
+    expect(formaCartaoAmbigua("Cartão de crédito")).toBe(false);
+    expect(formaCartaoAmbigua("Cartão débito")).toBe(false);
+    expect(formaCartaoAmbigua("Crédito")).toBe(false);
+    expect(formaCartaoAmbigua("PIX")).toBe(false);
+    expect(formaCartaoAmbigua("Dinheiro")).toBe(false);
+  });
+
+  it("pagamento numa forma ambígua bloqueia a conferência (nunca vai sem maquininha)", () => {
+    expect(validarPagamentos([{ forma: "Cartão", valor: 100 }], 100, ADQUIRENTES, true)).toBe(
+      "“Cartão” não informa se é débito ou crédito. Remova este pagamento e use uma forma de débito ou crédito.",
+    );
+  });
+});
+
+describe("pagamento parcial e Fiado (Fase C)", () => {
+  it("pagamento abaixo do total sem Fiado bloqueia e diz quanto falta", () => {
+    // formatMoeda (Intl) usa espaço não separável depois de "R$".
+    expect(validarPagamentos([{ forma: "PIX", valor: 60 }], 100, [], true)).toMatch(
+      /^Falta receber R\$\s40,00\. Adicione outro pagamento ou lance a diferença no Fiado\.$/,
+    );
+  });
+
+  it("sem nenhum valor informado também bloqueia", () => {
+    expect(validarPagamentos([{ forma: "Dinheiro", valor: 0 }], 100, [], true)).toMatch(
+      /^Falta receber R\$\s100,00/,
+    );
+  });
+
+  it("diferença lançada no Fiado com cliente é permitida", () => {
+    expect(
+      validarPagamentos(
+        [
+          { forma: "PIX", valor: 60 },
+          { forma: "Fiado", valor: 40, parcelas: 2 },
+        ],
+        100,
+        [],
+        true,
+      ),
+    ).toBeNull();
+  });
+
+  it("Fiado sem cliente bloqueia (o backend exige cliente para saldo pendente)", () => {
+    expect(
+      validarPagamentos(
+        [
+          { forma: "PIX", valor: 60 },
+          { forma: "Fiado", valor: 40 },
+        ],
+        100,
+        [],
+        false,
+      ),
+    ).toBe("Venda no Fiado precisa de cliente. Selecione a cliente antes de conferir.");
+  });
+
+  it("venda 100% no Fiado com cliente é permitida", () => {
+    expect(validarPagamentos([{ forma: "Fiado", valor: 100 }], 100, [], true)).toBeNull();
+  });
+
+  it("linha Fiado zerada com pagamento completo não exige cliente", () => {
+    expect(
+      validarPagamentos(
+        [
+          { forma: "PIX", valor: 100 },
+          { forma: "Fiado", valor: 0 },
+        ],
+        100,
+        [],
+        false,
+      ),
+    ).toBeNull();
+  });
+
+  it("regressão Fase A: dinheiro com troco cobre o total e passa sem cliente", () => {
+    expect(validarPagamentos([{ forma: "Dinheiro", valor: 100 }], 89.9, [], false)).toBeNull();
+  });
+
+  it("regressão Fase B: cartão completo pago integralmente passa sem cliente", () => {
+    expect(
+      validarPagamentos(
+        [{ forma: "Crédito", valor: 100, adquirenteId: "adq-stone", parcelas: 6 }],
+        100,
+        ADQUIRENTES,
+        false,
+      ),
+    ).toBeNull();
+  });
+
+  it("Fiado + dinheiro com troco: o que vai ao backend como pendente é exatamente o Fiado", () => {
+    const pagamentos = [
+      { forma: "Dinheiro", valor: 100 },
+      { forma: "Fiado", valor: 50, parcelas: 2 },
+    ];
+    expect(validarPagamentos(pagamentos, 120, [], true)).toBeNull();
+    const envio = montarPagamentosParaEnvio(pagamentos, 120);
+    const pago = envio.pagamentos.reduce((s, p) => s + p.valor, 0);
+    expect(120 - pago).toBe(50);
   });
 });
 

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { CampoDecimal } from "@/components/pdv/comum/CampoDecimal";
 import { formatMoeda } from "@/lib/format";
 import {
+  formaCartaoAmbigua,
   formaEhCartao,
   formaEhCredito,
   formaEhDinheiro,
@@ -349,12 +350,19 @@ export function PagamentoPanel({
                   key={forma}
                   variant="outline"
                   className="h-10 text-xs"
+                  disabled={formaCartaoAmbigua(forma)}
                   onClick={() => onAdicionar(forma)}
                 >
                   {forma}
                 </Button>
               ))}
             </div>
+            {formas.dados.some(formaCartaoAmbigua) && (
+              <p className="text-[0.7rem] leading-snug text-muted-foreground">
+                {formas.dados.filter(formaCartaoAmbigua).join(", ")}: indisponível, o cadastro não
+                diz se é débito ou crédito. Use débito ou crédito.
+              </p>
+            )}
           </>
         )}
 

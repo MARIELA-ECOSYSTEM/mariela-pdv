@@ -109,6 +109,43 @@ describe("useCarrinho", () => {
     expect(hook.atual.subtotalAposItens).toBe(90);
   });
 
+  it("diminuir a quantidade reduz sozinho um desconto em R$ que ficou maior que a linha", () => {
+    hook = montarHook();
+    act(() => hook!.atual.adicionar(item({ precoUnitario: 100, quantidade: 2 })));
+    act(() => hook!.atual.alterarDesconto(item().linhaId, { tipo: "monetario", valor: 150 }));
+    act(() => hook!.atual.alterarQuantidade(item().linhaId, 1));
+
+    expect(hook.atual.itens[0]?.desconto).toEqual({ tipo: "monetario", valor: 100 });
+    expect(hook.atual.subtotalAposItens).toBe(0);
+  });
+
+  it("desconto em R$ ainda válido e desconto em % não mudam ao alterar a quantidade", () => {
+    hook = montarHook();
+    act(() => hook!.atual.adicionar(item({ linhaId: "a", precoUnitario: 100, quantidade: 2 })));
+    act(() => hook!.atual.adicionar(item({ linhaId: "b", precoUnitario: 100, quantidade: 2 })));
+    act(() => hook!.atual.alterarDesconto("a", { tipo: "monetario", valor: 30 }));
+    act(() => hook!.atual.alterarDesconto("b", { tipo: "percentual", valor: 10 }));
+    act(() => hook!.atual.alterarQuantidade("a", 1));
+    act(() => hook!.atual.alterarQuantidade("b", 1));
+
+    expect(hook.atual.itens.map((i) => i.desconto)).toEqual([
+      { tipo: "monetario", valor: 30 },
+      { tipo: "percentual", valor: 10 },
+    ]);
+    expect(hook.atual.subtotalAposItens).toBe(160);
+  });
+
+  it("incluir mais unidades do mesmo produto mantém o desconto do item", () => {
+    hook = montarHook();
+    act(() => hook!.atual.adicionar(item({ precoUnitario: 100 })));
+    act(() => hook!.atual.alterarDesconto(item().linhaId, { tipo: "monetario", valor: 20 }));
+    act(() => hook!.atual.adicionar(item({ precoUnitario: 100 })));
+
+    expect(hook.atual.itens[0]?.quantidade).toBe(2);
+    expect(hook.atual.itens[0]?.desconto).toEqual({ tipo: "monetario", valor: 20 });
+    expect(hook.atual.subtotalAposItens).toBe(180);
+  });
+
   it("desconto monetário do item nunca passa do valor da linha", () => {
     hook = montarHook();
     act(() => hook!.atual.adicionar(item({ precoUnitario: 100 })));
