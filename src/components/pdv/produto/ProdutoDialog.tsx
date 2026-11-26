@@ -27,7 +27,7 @@ export function ProdutoDialog({
   onFechar,
   onAdicionar,
   quantidadeNoCarrinho = () => 0,
-  onAdicionado,
+  onAposFechar,
 }: {
   produto: PdvProduto | null;
   aberto: boolean;
@@ -36,10 +36,10 @@ export function ProdutoDialog({
   /** Unidades já no carrinho para a linha produto:variante:tamanho. */
   quantidadeNoCarrinho?: (linhaId: string) => number;
   /**
-   * Chamado quando o diálogo termina de fechar DEPOIS de uma adição — no
-   * lugar de devolver o foco ao card (ex.: focar a busca do catálogo).
+   * Chamado quando o diálogo termina de fechar (adicionando ou não), no lugar
+   * do retorno de foco padrão — a tela decide o destino (busca ou card).
    */
-  onAdicionado?: () => void;
+  onAposFechar?: (adicionou: boolean) => void;
 }) {
   const variantes = produto?.variantes ?? [];
 
@@ -102,13 +102,13 @@ export function ProdutoDialog({
       <DialogContent
         className="max-w-3xl"
         onCloseAutoFocus={(evento) => {
-          // Depois de adicionar, o foco vai para onde a tela indicar (a busca),
-          // e não de volta ao card. Cancelar mantém o comportamento padrão.
-          if (adicionouRef.current && onAdicionado) {
-            evento.preventDefault();
-            adicionouRef.current = false;
-            onAdicionado();
-          }
+          // A tela decide o destino do foco (busca após adicionar; card ao
+          // cancelar/fechar) — sem depender do retorno padrão do navegador.
+          if (!onAposFechar) return;
+          evento.preventDefault();
+          const adicionou = adicionouRef.current;
+          adicionouRef.current = false;
+          onAposFechar(adicionou);
         }}
       >
         {produto && (

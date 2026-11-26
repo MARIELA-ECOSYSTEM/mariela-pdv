@@ -5,9 +5,13 @@ import type { PdvProduto } from "@/types/produto";
 export function ProdutoCard({
   produto,
   onSelecionar,
+  bloqueado = false,
 }: {
   produto: PdvProduto;
-  onSelecionar: (produto: PdvProduto) => void;
+  /** `origem` = o próprio card, para o foco voltar a ele quando o diálogo fechar. */
+  onSelecionar: (produto: PdvProduto, origem?: HTMLElement) => void;
+  /** Caixa não aberto: o card não abre o produto (mesma regra da busca). */
+  bloqueado?: boolean;
 }) {
   const estoque = produto.variantes.reduce((t, v) => t + v.quantidade, 0);
   const disponivel = produto.disponivel && estoque > 0;
@@ -15,8 +19,8 @@ export function ProdutoCard({
   return (
     <button
       type="button"
-      onClick={() => onSelecionar(produto)}
-      disabled={!disponivel}
+      onClick={(evento) => onSelecionar(produto, evento.currentTarget)}
+      disabled={!disponivel || bloqueado}
       className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-[var(--shadow-lift)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
     >
       <div className="relative aspect-[4/5] w-full overflow-hidden bg-muted">

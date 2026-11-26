@@ -234,20 +234,26 @@ export function ConferenciaDialog({
                   const adquirente = encontrarAdquirente(adquirentes, p.adquirenteId);
                   const aplicado = aplicados[indice]?.valorAplicado ?? p.valor;
                   const comTroco = formaEhDinheiro(p.forma) && aplicado < p.valor;
+                  const fiado = formaEhFiado(p.forma);
+                  const parcelado =
+                    (formaEhCredito(p.forma) || fiado) && !!p.parcelas && p.parcelas > 1;
+                  const parcelasTexto = parcelado
+                    ? `${p.parcelas}x de ${formatMoeda(valorParcela(p.valor, p.parcelas))}`
+                    : null;
                   return (
                     <li key={p.id} className="flex items-center justify-between gap-3 p-3">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{p.forma}</p>
+                        <p className="truncate text-sm font-medium">
+                          {fiado ? `${p.forma} — a receber` : p.forma}
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                          {adquirente ? `${adquirente.nome} · ` : ""}
-                          {(formaEhCredito(p.forma) || formaEhFiado(p.forma)) &&
-                          p.parcelas &&
-                          p.parcelas > 1
-                            ? `${p.parcelas}x de ${formatMoeda(valorParcela(p.valor, p.parcelas))}`
-                            : formaEhFiado(p.forma)
-                              ? "Pagamento posterior"
-                              : "À vista"}
-                          {comTroco ? ` · Recebido ${formatMoeda(p.valor)}` : ""}
+                          {fiado
+                            ? [cliente ? `de ${cliente.nome}` : null, parcelasTexto]
+                                .filter(Boolean)
+                                .join(" · ")
+                            : `${adquirente ? `${adquirente.nome} · ` : ""}${parcelasTexto ?? "À vista"}${
+                                comTroco ? ` · Recebido ${formatMoeda(p.valor)}` : ""
+                              }`}
                         </p>
                       </div>
                       <span className="text-sm font-semibold">{formatMoeda(aplicado)}</span>
@@ -258,11 +264,9 @@ export function ConferenciaDialog({
             )}
             {(temFiado || temTroco) && (
               <div className="space-y-2 rounded-lg border border-border bg-surface p-3">
+                {/* O Fiado já aparece (uma vez) na lista acima; aqui só o que é pago agora. */}
                 {temFiado && (
-                  <>
-                    <Linha rotulo="Pago agora" valor={pagamentoTotais.pagoAgora} />
-                    <Linha rotulo="Fiado (a receber)" valor={pagamentoTotais.fiado} destaque />
-                  </>
+                  <Linha rotulo="Pago agora" valor={pagamentoTotais.pagoAgora} destaque />
                 )}
                 {temTroco && (
                   <Linha rotulo="Troco a devolver" valor={pagamentoTotais.troco} destaque />

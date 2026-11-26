@@ -1,5 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { formatarDecimalBr, parseDecimalBr, sanitizarDecimal } from "./decimal";
+import {
+  formatarDecimalBr,
+  formatarDecimalFixoBr,
+  parseDecimalBr,
+  sanitizarDecimal,
+} from "./decimal";
+
+describe("formatarDecimalFixoBr — valor em dinheiro com duas casas (F-05)", () => {
+  it("sempre duas casas, vírgula decimal", () => {
+    expect(formatarDecimalFixoBr(289.9)).toBe("289,90");
+    expect(formatarDecimalFixoBr(100)).toBe("100,00");
+    expect(formatarDecimalFixoBr(0.1)).toBe("0,10");
+    expect(formatarDecimalFixoBr(1234.56)).toBe("1234,56");
+  });
+
+  it("é só exibição: o texto exibido volta ao mesmo número", () => {
+    for (const v of [289.9, 100, 0.1, 89.9]) {
+      expect(parseDecimalBr(formatarDecimalFixoBr(v))).toBe(v);
+    }
+  });
+
+  it("valor inválido não vira texto", () => {
+    expect(formatarDecimalFixoBr(Number.NaN)).toBe("");
+  });
+});
 
 describe("entrada decimal brasileira", () => {
   it("aceita casas decimais com vírgula", () => {

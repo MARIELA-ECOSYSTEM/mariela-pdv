@@ -39,6 +39,7 @@ import { gerarUuid } from "@/lib/uuid";
 import { pdvDataSource } from "@/services/pdv-data-source";
 import { criarControleVenda, type ControleVenda } from "@/features/venda/controle-venda";
 import { consultarEstadoCaixa } from "@/features/caixa/estado-caixa";
+import { destinoDoFocoAoFecharProduto } from "@/features/produto/foco-produto";
 
 import type { RequestState } from "@/types/api";
 import type { PdvProduto } from "@/types/produto";
@@ -203,6 +204,8 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
 
   // ---- Produto / carrinho / cliente ----
   const [produtoSelecionado, setProdutoSelecionado] = useState<PdvProduto | null>(null);
+  // Card que abriu o diálogo do produto — destino do foco ao cancelar/fechar.
+  const cardOrigemRef = useRef<HTMLElement | null>(null);
   const [clienteAberto, setClienteAberto] = useState(false);
   const [cliente, setCliente] = useState<PdvCliente | null>(null);
   const carrinho = useCarrinho();
@@ -410,6 +413,13 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
 
   const bloqueado = caixa !== "aberto";
 
+  /** Abre o produto — nunca com o caixa fechado (mesma regra da busca e dos cards). */
+  function abrirProduto(produto: PdvProduto, origem?: HTMLElement) {
+    if (bloqueado) return;
+    cardOrigemRef.current = origem ?? null;
+    setProdutoSelecionado(produto);
+  }
+
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       <PdvHeader
@@ -434,7 +444,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
             estado={estadoCatalogo}
             busca={busca}
             onBuscaChange={setBusca}
-            onSelecionar={setProdutoSelecionado}
+            onSelecionar={abrirProduto}
             onTentarNovamente={() => setRecarga((n) => n + 1)}
             bloqueado={bloqueado}
             total={paginaCatalogo.total}
@@ -466,6 +476,7 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
               adquirentes={opcoesPagamento.adquirentes}
               problema={problemaPagamento}
               onRecarregarOpcoes={opcoesPagamento.recarregar}
+              onSelecionarCliente={() => setClienteAberto(true)}
               cliente={cliente}
               enviando={tentativa?.estado === "processando" || verificandoCaixa}
               bloqueado={bloqueado}
@@ -495,11 +506,17 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         onFechar={() => setProdutoSelecionado(null)}
         onAdicionar={carrinho.adicionar}
         quantidadeNoCarrinho={carrinho.quantidadeDaLinha}
-        // Produto adicionado: a busca recebe o foco com o termo selecionado,
-        // para a vendedora já digitar o próximo produto.
-        onAdicionado={() => {
-          buscaRef.current?.focus();
-          buscaRef.current?.select();
+        // Após adicionar: busca com o termo selecionado (próximo produto).
+        // Após cancelar/fechar: o card que abriu o diálogo (ou a busca).
+        onAposFechar={(adicionou) => {
+          const destino = destinoDoFocoAoFecharProduto({
+            adicionou,
+            origem: cardOrigemRef.current,
+            busca: buscaRef.current,
+          });
+          cardOrigemRef.current = null;
+          destino?.focus();
+          if (destino && destino === buscaRef.current && adicionou) buscaRef.current.select();
         }}
       />
 

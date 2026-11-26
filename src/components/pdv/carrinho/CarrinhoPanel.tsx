@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ProdutoImagem } from "@/components/pdv/ProdutoImagem";
 import { DescontoInput } from "@/components/pdv/desconto/DescontoInput";
-import { formatarDecimalBr } from "@/lib/decimal";
 import { formatMoeda } from "@/lib/format";
 import { totaisDoItem, type PdvVendaTotais } from "@/lib/venda-totais";
 import { DESCONTO_ZERO, type PdvDesconto } from "@/types/desconto";
@@ -201,19 +200,9 @@ export function CarrinhoPanel({
           </div>
         )}
         <div className="flex items-start justify-between gap-3">
+          {/* A equivalência (% ↔ R$) aparece uma só vez, no próprio campo (DescontoInput). */}
           <Label htmlFor="desconto" className="mt-2 text-sm text-muted-foreground">
             Desconto da venda
-            {totais.descontoVenda > 0 && (
-              <span className="ml-1 text-xs">
-                (− {formatMoeda(totais.descontoVenda)} ·{" "}
-                {formatarDecimalBr(
-                  totais.subtotalAposItens > 0
-                    ? (totais.descontoVenda / totais.subtotalAposItens) * 100
-                    : 0,
-                )}
-                %)
-              </span>
-            )}
           </Label>
           <DescontoInput
             id="desconto"

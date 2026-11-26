@@ -34,6 +34,15 @@ export function parseDecimalBr(texto: string): number {
   return Number.isFinite(numero) ? numero : 0;
 }
 
+/**
+ * Apresentação monetária de campo: sempre com `casas` decimais ("289,90",
+ * "100,00"). Só exibição — o número em si não muda.
+ */
+export function formatarDecimalFixoBr(valor: number, casas = 2): string {
+  if (!Number.isFinite(valor)) return "";
+  return valor.toFixed(Math.max(0, casas)).replace(".", ",");
+}
+
 /** Apresenta o número no padrão brasileiro, sem zeros decorativos à direita. */
 export function formatarDecimalBr(valor: number, maxDecimais = 2): string {
   if (!Number.isFinite(valor)) return "";

@@ -14,7 +14,7 @@ export const CatalogoProdutos = forwardRef<
     estado: RequestState;
     busca: string;
     onBuscaChange: (valor: string) => void;
-    onSelecionar: (produto: PdvProduto) => void;
+    onSelecionar: (produto: PdvProduto, origem?: HTMLElement) => void;
     onTentarNovamente: () => void;
     bloqueado?: boolean;
     /** Total de produtos do resultado no backend (meta.total). */
@@ -98,11 +98,23 @@ export const CatalogoProdutos = forwardRef<
         )}
 
         {estado === "success" && produtos.length > 0 && (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
-            {produtos.map((produto) => (
-              <ProdutoCard key={produto.id} produto={produto} onSelecionar={onSelecionar} />
-            ))}
-          </div>
+          <>
+            {bloqueado && (
+              <p role="status" className="mb-3 text-sm text-muted-foreground">
+                Produtos bloqueados enquanto o caixa não estiver aberto.
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              {produtos.map((produto) => (
+                <ProdutoCard
+                  key={produto.id}
+                  produto={produto}
+                  onSelecionar={onSelecionar}
+                  bloqueado={!!bloqueado}
+                />
+              ))}
+            </div>
+          </>
         )}
 
         {estado === "success" && temMais && onCarregarMais && (

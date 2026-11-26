@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { formatarDecimalBr, parseDecimalBr, sanitizarDecimal } from "@/lib/decimal";
+import {
+  formatarDecimalBr,
+  formatarDecimalFixoBr,
+  parseDecimalBr,
+  sanitizarDecimal,
+} from "@/lib/decimal";
 import { cn } from "@/lib/utils";
 
 /**
  * Campo numérico no padrão brasileiro (vírgula decimal). Mantém o texto
  * digitado enquanto o operador escreve, para que "20," e "20,5" não sejam
  * truncados, e informa o número já convertido.
+ *
+ * `casasFixas`: fora da edição, exibe sempre `maxDecimais` casas (valores em
+ * dinheiro: "289,90", "100,00"). Durante a digitação nada é reformatado.
  */
 export function CampoDecimal({
   id,
@@ -15,6 +23,7 @@ export function CampoDecimal({
   placeholder = "0,00",
   className,
   maxDecimais = 2,
+  casasFixas = false,
   ariaLabel,
 }: {
   id?: string;
@@ -23,22 +32,30 @@ export function CampoDecimal({
   placeholder?: string;
   className?: string;
   maxDecimais?: number;
+  casasFixas?: boolean;
   ariaLabel?: string;
 }) {
-  const [texto, setTexto] = useState(() => (valor ? formatarDecimalBr(valor, maxDecimais) : ""));
+  const exibir = (v: number) =>
+    v
+      ? casasFixas
+        ? formatarDecimalFixoBr(v, maxDecimais)
+        : formatarDecimalBr(v, maxDecimais)
+      : "";
+  const [texto, setTexto] = useState(() => exibir(valor));
   const editando = useRef(false);
 
   useEffect(() => {
     if (editando.current) return;
-    setTexto(valor ? formatarDecimalBr(valor, maxDecimais) : "");
-  }, [valor, maxDecimais]);
+    setTexto(exibir(valor));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valor, maxDecimais, casasFixas]);
 
   // Reflete mudanças externas (troca de modalidade, limites) sem apagar o que
   // está sendo digitado.
   useEffect(() => {
     if (!editando.current) return;
     if (parseDecimalBr(texto) !== valor) {
-      setTexto(valor ? formatarDecimalBr(valor, maxDecimais) : "");
+      setTexto(exibir(valor));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valor]);
@@ -55,7 +72,7 @@ export function CampoDecimal({
       }}
       onBlur={() => {
         editando.current = false;
-        setTexto(valor ? formatarDecimalBr(valor, maxDecimais) : "");
+        setTexto(exibir(valor));
       }}
       onChange={(e) => {
         const limpo = sanitizarDecimal(e.target.value, maxDecimais);

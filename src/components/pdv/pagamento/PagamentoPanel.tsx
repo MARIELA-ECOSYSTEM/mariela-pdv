@@ -9,9 +9,11 @@ import {
   formaEhDinheiro,
   formaEhFiado,
   formasParaExibir,
+  MENSAGEM_FIADO_SEM_CLIENTE,
   mensagemFaltaReceber,
   opcoesParcelas,
 } from "@/lib/pagamento";
+import { situacaoPagamento, type TipoSituacaoPagamento } from "@/lib/situacao-pagamento";
 import { cn } from "@/lib/utils";
 import {
   encontrarAdquirente,
@@ -28,6 +30,14 @@ import type { PdvPagamentoLinha } from "@/types/venda";
 import type { PdvCliente } from "@/types/cliente";
 
 const SELECT = "h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground";
+
+const ESTILO_SITUACAO: Record<TipoSituacaoPagamento, string> = {
+  falta: "bg-destructive/10 text-destructive",
+  ajustar: "bg-destructive/10 text-destructive",
+  bloqueado: "bg-muted text-muted-foreground",
+  fiado: "bg-primary/10 text-primary",
+  completo: "bg-success/15 text-success",
+};
 
 /**
  * Linha FIADO: valor que ficará pendente e em quantas parcelas o cliente
@@ -219,6 +229,7 @@ export function PagamentoPanel({
   adquirentes,
   problema = null,
   onRecarregarOpcoes,
+  onSelecionarCliente,
   cliente = null,
   enviando,
   bloqueado = false,
@@ -240,6 +251,8 @@ export function PagamentoPanel({
   /** Pagamento incompleto/inválido (ver validarPagamentos) — impede conferir. */
   problema?: string | null;
   onRecarregarOpcoes: () => void;
+  /** Abre o diálogo de cliente já existente (o mesmo do cabeçalho). */
+  onSelecionarCliente?: () => void;
   cliente?: PdvCliente | null;
   enviando: boolean;
   /** Sem caixa aberto (abertura é exclusiva do Backoffice) a venda não conclui. */
@@ -255,6 +268,13 @@ export function PagamentoPanel({
   const descontoTotal = arredondarCentavos(totaisVenda.descontoItens + totaisVenda.descontoVenda);
   const temFiado = totais.fiado > 0.001;
   const faltaReceber = totais.pendente > 0.001;
+  const situacao = situacaoPagamento({
+    quantidadePagamentos: pagamentos.length,
+    totais,
+    problema,
+    bloqueado,
+    clienteNome: cliente?.nome,
+  });
   // "Falta receber" aparece UMA vez, na situação do pagamento — a mesma
   // mensagem vinda da validação não é repetida embaixo (o bloqueio continua).
   const problemaExibido =
@@ -369,6 +389,7 @@ export function PagamentoPanel({
                   <span className="flex-1 text-sm font-medium">{p.forma}</span>
                   <CampoDecimal
                     valor={p.valor}
+                    casasFixas
                     onChange={(valor) => onAlterarValor(p.id, valor)}
                     ariaLabel={
                       formaEhDinheiro(p.forma)
@@ -433,23 +454,20 @@ export function PagamentoPanel({
               </span>
             </div>
           )}
-          {faltaReceber ? (
-            <p className="rounded-md bg-destructive/10 px-2 py-1.5 text-center text-sm font-semibold text-destructive">
-              Falta receber {formatMoeda(totais.pendente)}
-              <span className="block text-[0.7rem] font-normal">
-                Adicione outro pagamento ou lance a diferença no Fiado.
-              </span>
+          {situacao && (
+            <p
+              data-situacao={situacao.tipo}
+              className={cn(
+                "rounded-md px-2 py-1.5 text-center text-sm font-semibold",
+                ESTILO_SITUACAO[situacao.tipo],
+              )}
+            >
+              {situacao.texto}
+              {situacao.detalhe && (
+                <span className="block text-[0.7rem] font-normal">{situacao.detalhe}</span>
+              )}
             </p>
-          ) : temFiado ? (
-            <p className="rounded-md bg-primary/10 px-2 py-1.5 text-center text-sm font-semibold text-primary">
-              Fiado: {formatMoeda(totais.fiado)} a receber
-              {cliente ? ` de ${cliente.nome}` : ""}
-            </p>
-          ) : totais.recebido > 0 ? (
-            <p className="rounded-md bg-success/15 px-2 py-1.5 text-center text-sm font-semibold text-success">
-              Pagamento completo
-            </p>
-          ) : null}
+          )}
         </div>
       )}
 
@@ -467,9 +485,23 @@ export function PagamentoPanel({
           </p>
         )}
         {problemaExibido && (
-          <p role="alert" className="text-center text-[0.7rem] leading-snug text-destructive">
-            {problemaExibido}
-          </p>
+          <div
+            role="alert"
+            className="space-y-1.5 text-center text-[0.7rem] leading-snug text-destructive"
+          >
+            <p>{problemaExibido}</p>
+            {/* Fiado sem cliente: atalho para o MESMO diálogo de cliente do cabeçalho. */}
+            {problemaExibido === MENSAGEM_FIADO_SEM_CLIENTE && onSelecionarCliente && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={onSelecionarCliente}
+              >
+                Selecionar cliente
+              </Button>
+            )}
+          </div>
         )}
         <Button
           className="h-14 w-full text-base tracking-[0.12em]"

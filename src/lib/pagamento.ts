@@ -75,6 +75,13 @@ export function formasParaExibir(formas: string[]): string[] {
 }
 
 /**
+ * Texto do bloqueio "Fiado sem cliente" de `validarPagamentos`. Exposto para a
+ * tela oferecer, junto do aviso, a ação de selecionar a cliente.
+ */
+export const MENSAGEM_FIADO_SEM_CLIENTE =
+  "Venda no Fiado precisa de cliente. Selecione a cliente antes de conferir.";
+
+/**
  * Texto do bloqueio "falta receber" de `validarPagamentos`. Exposto para a tela
  * reconhecer esse caso e mostrá-lo uma só vez (na situação do pagamento).
  */
@@ -133,7 +140,7 @@ export function validarPagamentos(
     .filter((p) => formaEhFiado(p.forma))
     .reduce((soma, p) => soma + centavos(p.valor), 0);
   if (fiado > 0 && !temCliente) {
-    return "Venda no Fiado precisa de cliente. Selecione a cliente antes de conferir.";
+    return MENSAGEM_FIADO_SEM_CLIENTE;
   }
   return null;
 }
