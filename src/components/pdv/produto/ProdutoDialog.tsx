@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import {
   Dialog,
@@ -11,6 +11,12 @@ import { Button } from "@/components/ui/button";
 import { ProdutoImagem } from "@/components/pdv/ProdutoImagem";
 import { formatMoeda } from "@/lib/format";
 import { linhaDoCarrinho } from "@/features/carrinho/useCarrinho";
+import {
+  corComEstoque,
+  corInicial,
+  disponivelParaAdicionar,
+  tamanhoAutomatico,
+} from "@/features/produto/selecao-produto";
 import { cn } from "@/lib/utils";
 import type { PdvProduto } from "@/types/produto";
 import type { PdvItemCarrinho } from "@/types/carrinho";
@@ -21,6 +27,7 @@ export function ProdutoDialog({
   onFechar,
   onAdicionar,
   quantidadeNoCarrinho = () => 0,
+  onAdicionado,
 }: {
   produto: PdvProduto | null;
   aberto: boolean;
@@ -28,18 +35,30 @@ export function ProdutoDialog({
   onAdicionar: (item: PdvItemCarrinho) => void;
   /** Unidades já no carrinho para a linha produto:variante:tamanho. */
   quantidadeNoCarrinho?: (linhaId: string) => number;
+  /**
+   * Chamado quando o diálogo termina de fechar DEPOIS de uma adição — no
+   * lugar de devolver o foco ao card (ex.: focar a busca do catálogo).
+   */
+  onAdicionado?: () => void;
 }) {
   const variantes = produto?.variantes ?? [];
 
   const [varianteId, setVarianteId] = useState<string | undefined>(undefined);
   const [tamanhoId, setTamanhoId] = useState<string | undefined>(undefined);
   const [quantidade, setQuantidade] = useState(1);
+  const adicionouRef = useRef(false);
 
+  // Ao abrir: primeira cor com estoque adicionável e, se houver um único
+  // tamanho adicionável nela, ele já vem marcado (ver selecao-produto.ts).
   useEffect(() => {
-    if (!aberto) return;
-    setVarianteId(produto?.variantes[0]?.id);
-    setTamanhoId(undefined);
+    if (!aberto || !produto) return;
+    adicionouRef.current = false;
+    const cor = corInicial(produto, quantidadeNoCarrinho);
+    setVarianteId(cor);
+    setTamanhoId(tamanhoAutomatico(produto, cor, quantidadeNoCarrinho));
     setQuantidade(1);
+    // Só na abertura: o carrinho não muda enquanto o diálogo está aberto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberto, produto]);
 
   const variante = variantes.find((v) => v.id === varianteId);
@@ -50,11 +69,17 @@ export function ProdutoDialog({
     produto && variante && tamanho ? linhaDoCarrinho(produto.id, variante.id, tamanho.id) : "";
   const noCarrinho = linhaId ? quantidadeNoCarrinho(linhaId) : 0;
   // Estoque conhecido menos o que já está no carrinho para este tamanho.
-  const disponivel = Math.max(0, estoque - noCarrinho);
+  const disponivel =
+    produto && variante && tamanho
+      ? disponivelParaAdicionar(produto.id, variante.id, tamanho, quantidadeNoCarrinho)
+      : 0;
   const podeAdicionar = !!produto && !!variante && !!tamanho && disponivel > 0;
+  const nenhumaCorDisponivel =
+    !!produto && variantes.length > 0 && !corInicial(produto, quantidadeNoCarrinho);
 
   function adicionar() {
     if (!produto || !variante || !tamanho || disponivel <= 0) return;
+    adicionouRef.current = true;
     onAdicionar({
       linhaId,
       produtoId: produto.id,
@@ -74,7 +99,18 @@ export function ProdutoDialog({
 
   return (
     <Dialog open={aberto} onOpenChange={(v) => !v && onFechar()}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent
+        className="max-w-3xl"
+        onCloseAutoFocus={(evento) => {
+          // Depois de adicionar, o foco vai para onde a tela indicar (a busca),
+          // e não de volta ao card. Cancelar mantém o comportamento padrão.
+          if (adicionouRef.current && onAdicionado) {
+            evento.preventDefault();
+            adicionouRef.current = false;
+            onAdicionado();
+          }
+        }}
+      >
         {produto && (
           <>
             <DialogHeader>
@@ -100,26 +136,41 @@ export function ProdutoDialog({
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Cor</p>
                     <div className="flex flex-wrap gap-2">
-                      {variantes.map((v) => (
-                        <button
-                          key={v.id}
-                          type="button"
-                          onClick={() => {
-                            setVarianteId(v.id);
-                            setTamanhoId(undefined);
-                            setQuantidade(1);
-                          }}
-                          className={cn(
-                            "rounded-full border px-4 py-1.5 text-sm transition-colors",
-                            varianteId === v.id
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-border bg-card hover:border-primary/40",
-                          )}
-                        >
-                          {v.cor}
-                        </button>
-                      ))}
+                      {variantes.map((v) => {
+                        // Mesmo critério dos tamanhos: cor sem estoque na API fica indisponível.
+                        const semEstoque = !corComEstoque(v);
+                        return (
+                          <button
+                            key={v.id}
+                            type="button"
+                            disabled={semEstoque}
+                            onClick={() => {
+                              setVarianteId(v.id);
+                              setTamanhoId(
+                                produto
+                                  ? tamanhoAutomatico(produto, v.id, quantidadeNoCarrinho)
+                                  : undefined,
+                              );
+                              setQuantidade(1);
+                            }}
+                            className={cn(
+                              "rounded-full border px-4 py-1.5 text-sm transition-colors",
+                              varianteId === v.id
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-border bg-card hover:border-primary/40",
+                              semEstoque && "cursor-not-allowed line-through opacity-50",
+                            )}
+                          >
+                            {v.cor}
+                          </button>
+                        );
+                      })}
                     </div>
+                    {nenhumaCorDisponivel && (
+                      <p className="text-xs text-destructive">
+                        Sem estoque disponível para adicionar deste produto.
+                      </p>
+                    )}
                   </div>
                 )}
 

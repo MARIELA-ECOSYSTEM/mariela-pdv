@@ -495,6 +495,12 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
         onFechar={() => setProdutoSelecionado(null)}
         onAdicionar={carrinho.adicionar}
         quantidadeNoCarrinho={carrinho.quantidadeDaLinha}
+        // Produto adicionado: a busca recebe o foco com o termo selecionado,
+        // para a vendedora já digitar o próximo produto.
+        onAdicionado={() => {
+          buscaRef.current?.focus();
+          buscaRef.current?.select();
+        }}
       />
 
       <ClienteDialog
