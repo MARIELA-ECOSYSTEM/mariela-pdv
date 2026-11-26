@@ -5,6 +5,7 @@ import {
   calcularTroco,
   formaCartaoAmbigua,
   formasParaExibir,
+  mensagemFaltaReceber,
   modalidadeCartao,
   validarPagamentos,
   formaEhCartao,
@@ -337,6 +338,15 @@ describe("pagamento parcial e Fiado (Fase C)", () => {
     // formatMoeda (Intl) usa espaço não separável depois de "R$".
     expect(validarPagamentos([{ forma: "PIX", valor: 60 }], 100, [], true)).toMatch(
       /^Falta receber R\$\s40,00\. Adicione outro pagamento ou lance a diferença no Fiado\.$/,
+    );
+  });
+
+  it("a mensagem de falta é exatamente mensagemFaltaReceber (a tela a mostra uma só vez)", () => {
+    expect(validarPagamentos([{ forma: "PIX", valor: 60 }], 100, [], true)).toBe(
+      mensagemFaltaReceber(40),
+    );
+    expect(validarPagamentos([{ forma: "PIX", valor: 0.1 }], 0.3, [], true)).toBe(
+      mensagemFaltaReceber(0.2),
     );
   });
 

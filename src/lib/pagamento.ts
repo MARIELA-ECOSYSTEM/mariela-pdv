@@ -75,6 +75,14 @@ export function formasParaExibir(formas: string[]): string[] {
 }
 
 /**
+ * Texto do bloqueio "falta receber" de `validarPagamentos`. Exposto para a tela
+ * reconhecer esse caso e mostrá-lo uma só vez (na situação do pagamento).
+ */
+export function mensagemFaltaReceber(falta: number): string {
+  return `Falta receber ${formatMoeda(falta)}. Adicione outro pagamento ou lance a diferença no Fiado.`;
+}
+
+/**
  * Problema que impede conferir a venda, em linguagem da vendedora — ou null.
  * O backend continua sendo a autoridade; aqui só se evita enviar o que ele
  * recusaria ou registraria de forma diferente do que a tela mostra:
@@ -119,9 +127,7 @@ export function validarPagamentos(
 
   const cobertura = pagamentos.reduce((soma, p) => soma + centavos(p.valor), 0);
   const falta = centavos(total) - cobertura;
-  if (falta > 0) {
-    return `Falta receber ${formatMoeda(falta / 100)}. Adicione outro pagamento ou lance a diferença no Fiado.`;
-  }
+  if (falta > 0) return mensagemFaltaReceber(falta / 100);
 
   const fiado = pagamentos
     .filter((p) => formaEhFiado(p.forma))

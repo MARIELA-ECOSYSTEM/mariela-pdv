@@ -12,13 +12,6 @@ import type { PdvItemCarrinho } from "@/types/carrinho";
 import type { PdvCliente } from "@/types/cliente";
 import type { PdvPagamentoLinha } from "@/types/venda";
 
-const SITUACAO = {
-  pago: { rotulo: "PAGO", classe: "bg-success/15 text-success" },
-  parcial: { rotulo: "PAGAMENTO PARCIAL", classe: "bg-primary/15 text-primary" },
-  pendente: { rotulo: "PENDENTE", classe: "bg-destructive/10 text-destructive" },
-  fiado: { rotulo: "FIADO — SALDO A RECEBER", classe: "bg-primary/15 text-primary" },
-} as const;
-
 function Linha({
   rotulo,
   valor,
@@ -41,9 +34,14 @@ function Linha({
   );
 }
 
+/**
+ * Conferência antes do envio — só o necessário para verificar a venda:
+ * cliente, produtos, descontos efetivamente aplicados, total, pagamentos,
+ * Fiado e troco. Linhas zeradas não aparecem. Ao chegar aqui o pagamento já
+ * foi validado (nada falta receber), por isso não há "pendente" nem selo.
+ */
 export function ConferenciaDialog({
   aberto,
-  vendedorNome,
   cliente,
   itens,
   totais,
@@ -57,7 +55,6 @@ export function ConferenciaDialog({
   onRegistrarComoNovaVenda,
 }: {
   aberto: boolean;
-  vendedorNome: string;
   cliente: PdvCliente | null;
   itens: PdvItemCarrinho[];
   totais: PdvVendaTotais;
@@ -71,7 +68,9 @@ export function ConferenciaDialog({
   onConfirmar: () => void;
   onRegistrarComoNovaVenda: () => void;
 }) {
-  const situacao = SITUACAO[pagamentoTotais.situacao];
+  const temDesconto = totais.descontoItens > 0 || totais.descontoVenda > 0;
+  const temFiado = pagamentoTotais.fiado > 0.001;
+  const temTroco = pagamentoTotais.troco > 0.001;
   // Valor efetivamente aplicado à venda por linha (dinheiro descontado do troco).
   const aplicados = aplicarTroco(pagamentos, totais.total);
   const conflito = pendencia === "conflito";
@@ -149,20 +148,10 @@ export function ConferenciaDialog({
             </div>
           )}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-border p-3">
-              <p className="text-[0.7rem] uppercase tracking-[0.14em] text-muted-foreground">
-                Vendedora
-              </p>
-              <p className="truncate text-sm font-medium">{vendedorNome}</p>
-            </div>
-            <div className="rounded-lg border border-border p-3">
-              <p className="text-[0.7rem] uppercase tracking-[0.14em] text-muted-foreground">
-                Cliente
-              </p>
-              <p className="truncate text-sm font-medium">{cliente?.nome ?? "Sem cliente"}</p>
-            </div>
-          </div>
+          <p className="text-sm">
+            <span className="text-muted-foreground">Cliente: </span>
+            <span className="font-medium">{cliente?.nome ?? "Sem cliente"}</span>
+          </p>
 
           {/* Produtos */}
           <section className="space-y-2">
@@ -201,13 +190,26 @@ export function ConferenciaDialog({
             </ul>
           </section>
 
-          {/* Resumo financeiro */}
+          {/* Resumo financeiro — descontos só quando existem */}
           <section className="space-y-2 rounded-lg border border-border bg-surface p-3">
-            <Linha rotulo="Subtotal dos produtos" valor={totais.subtotalBruto} />
-            <Linha rotulo="Descontos dos itens" valor={totais.descontoItens} negativo />
-            <Linha rotulo="Subtotal após descontos dos itens" valor={totais.subtotalAposItens} />
-            <Linha rotulo="Desconto da venda" valor={totais.descontoVenda} negativo />
-            <div className="flex items-end justify-between border-t border-border pt-2">
+            {temDesconto && (
+              <>
+                <Linha rotulo="Subtotal dos produtos" valor={totais.subtotalBruto} />
+                {totais.descontoItens > 0 && (
+                  <Linha rotulo="Descontos dos itens" valor={totais.descontoItens} negativo />
+                )}
+                {totais.descontoVenda > 0 && (
+                  <Linha rotulo="Desconto da venda" valor={totais.descontoVenda} negativo />
+                )}
+              </>
+            )}
+            <div
+              className={
+                temDesconto
+                  ? "flex items-end justify-between border-t border-border pt-2"
+                  : "flex items-end justify-between"
+              }
+            >
               <span className="text-sm font-medium uppercase tracking-[0.14em] text-muted-foreground">
                 Total da venda
               </span>
@@ -245,10 +247,6 @@ export function ConferenciaDialog({
                             : formaEhFiado(p.forma)
                               ? "Pagamento posterior"
                               : "À vista"}
-                          {p.tarifa != null ? ` · Tarifa ${formatMoeda(p.tarifa)}` : ""}
-                          {p.valorLiquido != null
-                            ? ` · Líquido ${formatMoeda(p.valorLiquido)}`
-                            : ""}
                           {comTroco ? ` · Recebido ${formatMoeda(p.valor)}` : ""}
                         </p>
                       </div>
@@ -258,32 +256,20 @@ export function ConferenciaDialog({
                 })}
               </ul>
             )}
-            <div className="space-y-2 rounded-lg border border-border bg-surface p-3">
-              <Linha
-                rotulo={pagamentoTotais.fiado > 0.001 ? "Pago agora (entrada)" : "Total recebido"}
-                valor={
-                  pagamentoTotais.fiado > 0.001
-                    ? pagamentoTotais.pagoAgora
-                    : pagamentoTotais.recebido
-                }
-                destaque
-              />
-              {pagamentoTotais.fiado > 0.001 && (
-                <Linha rotulo="Fiado (a receber)" valor={pagamentoTotais.fiado} />
-              )}
-              <Linha rotulo="Valor pendente" valor={pagamentoTotais.pendente} />
-              {pagamentoTotais.troco > 0.001 && (
-                <Linha rotulo="Troco a devolver" valor={pagamentoTotais.troco} destaque />
-              )}
-            </div>
+            {(temFiado || temTroco) && (
+              <div className="space-y-2 rounded-lg border border-border bg-surface p-3">
+                {temFiado && (
+                  <>
+                    <Linha rotulo="Pago agora" valor={pagamentoTotais.pagoAgora} />
+                    <Linha rotulo="Fiado (a receber)" valor={pagamentoTotais.fiado} destaque />
+                  </>
+                )}
+                {temTroco && (
+                  <Linha rotulo="Troco a devolver" valor={pagamentoTotais.troco} destaque />
+                )}
+              </div>
+            )}
           </section>
-
-          {/* Situação */}
-          <div
-            className={`rounded-lg px-3 py-2 text-center text-sm font-semibold tracking-[0.14em] ${situacao.classe}`}
-          >
-            {situacao.rotulo}
-          </div>
 
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button

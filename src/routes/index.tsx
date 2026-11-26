@@ -512,7 +512,6 @@ function PdvOperacao({ vendedorNome, onSair }: { vendedorNome: string; onSair: (
       {/* Conferência antes do POST — "Voltar e editar" preserva toda a venda. */}
       <ConferenciaDialog
         aberto={conferenciaAberta}
-        vendedorNome={vendedorNome}
         cliente={cliente}
         itens={carrinho.itens}
         totais={totais}

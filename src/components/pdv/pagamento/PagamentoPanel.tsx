@@ -9,8 +9,10 @@ import {
   formaEhDinheiro,
   formaEhFiado,
   formasParaExibir,
+  mensagemFaltaReceber,
   opcoesParcelas,
 } from "@/lib/pagamento";
+import { cn } from "@/lib/utils";
 import {
   encontrarAdquirente,
   parcelasPermitidas,
@@ -26,13 +28,6 @@ import type { PdvPagamentoLinha } from "@/types/venda";
 import type { PdvCliente } from "@/types/cliente";
 
 const SELECT = "h-8 rounded-md border border-border bg-card px-2 text-xs text-foreground";
-
-const SITUACAO = {
-  pago: { rotulo: "PAGO", classe: "bg-success/20 text-success" },
-  parcial: { rotulo: "PAGAMENTO PARCIAL", classe: "bg-primary/20 text-primary" },
-  pendente: { rotulo: "PENDENTE", classe: "bg-destructive/20 text-destructive" },
-  fiado: { rotulo: "FIADO — SALDO A RECEBER", classe: "bg-primary/20 text-primary" },
-} as const;
 
 /**
  * Linha FIADO: valor que ficará pendente e em quantas parcelas o cliente
@@ -257,8 +252,15 @@ export function PagamentoPanel({
   onVoltar: () => void;
   onConferir: () => void;
 }) {
-  const situacao = SITUACAO[totais.situacao];
   const descontoTotal = arredondarCentavos(totaisVenda.descontoItens + totaisVenda.descontoVenda);
+  const temFiado = totais.fiado > 0.001;
+  const faltaReceber = totais.pendente > 0.001;
+  // "Falta receber" aparece UMA vez, na situação do pagamento — a mesma
+  // mensagem vinda da validação não é repetida embaixo (o bloqueio continua).
+  const problemaExibido =
+    problema && faltaReceber && problema === mensagemFaltaReceber(totais.pendente)
+      ? null
+      : problema;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -275,22 +277,30 @@ export function PagamentoPanel({
 
       {/* Conteúdo rolável da etapa */}
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-        {/* Resumo compacto da venda */}
+        {/* Total da venda — único lugar do painel onde o total aparece */}
         <div className="space-y-1 rounded-lg border border-border bg-surface px-3 py-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Subtotal</span>
-            <span className="font-medium text-surface-foreground">
-              {formatMoeda(totaisVenda.subtotalBruto)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">Desconto</span>
-            <span className="font-medium text-surface-foreground">
-              {descontoTotal > 0 ? "− " : ""}
-              {formatMoeda(descontoTotal)}
-            </span>
-          </div>
-          <div className="flex items-end justify-between border-t border-border pt-1.5">
+          {descontoTotal > 0 && (
+            <>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="font-medium text-surface-foreground">
+                  {formatMoeda(totaisVenda.subtotalBruto)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Desconto</span>
+                <span className="font-medium text-surface-foreground">
+                  − {formatMoeda(descontoTotal)}
+                </span>
+              </div>
+            </>
+          )}
+          <div
+            className={cn(
+              "flex items-end justify-between",
+              descontoTotal > 0 && "border-t border-border pt-1.5",
+            )}
+          >
             <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Total
             </span>
@@ -406,53 +416,42 @@ export function PagamentoPanel({
         )}
       </div>
 
-      {/* Situação do pagamento — sempre visível */}
-      <div className="shrink-0 space-y-1.5 border-t border-border bg-surface px-4 py-3">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Total da venda</span>
-          <span className="font-medium text-surface-foreground">
-            {formatMoeda(totaisVenda.total)}
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">
-            {totais.fiado > 0.001 ? "Pago agora (entrada)" : "Total recebido"}
-          </span>
-          <span className="font-medium text-surface-foreground">
-            {formatMoeda(totais.fiado > 0.001 ? totais.pagoAgora : totais.recebido)}
-          </span>
-        </div>
-        {totais.fiado > 0.001 && (
+      {/* Recebido, troco e UMA indicação de situação — sempre visíveis */}
+      {pagamentos.length > 0 && (
+        <div className="shrink-0 space-y-1.5 border-t border-border bg-surface px-4 py-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Fiado (a receber)</span>
-            <span className="font-medium text-surface-foreground">{formatMoeda(totais.fiado)}</span>
-          </div>
-        )}
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Pendente</span>
-          <span className="font-medium text-surface-foreground">
-            {formatMoeda(totais.pendente)}
-          </span>
-        </div>
-        {(totais.pendente > 0.001 || totais.fiado > 0.001) && (
-          <p className="text-[0.7rem] leading-snug text-muted-foreground">
-            Saldo em aberto {cliente ? `para ${cliente.nome}` : "sem cliente associado"}.
-          </p>
-        )}
-        {totais.troco > 0.001 && (
-          <div className="flex items-center justify-between rounded-lg bg-accent px-3 py-2 text-sm">
-            <span className="font-medium text-accent-foreground">Troco a devolver</span>
-            <span className="font-semibold text-accent-foreground">
-              {formatMoeda(totais.troco)}
+            <span className="text-muted-foreground">{temFiado ? "Pago agora" : "Recebido"}</span>
+            <span className="font-medium text-surface-foreground">
+              {formatMoeda(temFiado ? totais.pagoAgora : totais.recebido)}
             </span>
           </div>
-        )}
-        <p
-          className={`rounded-md px-2 py-1 text-center text-xs font-semibold tracking-[0.14em] ${situacao.classe}`}
-        >
-          {situacao.rotulo}
-        </p>
-      </div>
+          {totais.troco > 0.001 && (
+            <div className="flex items-center justify-between rounded-lg bg-accent px-3 py-2 text-sm">
+              <span className="font-medium text-accent-foreground">Troco a devolver</span>
+              <span className="font-semibold text-accent-foreground">
+                {formatMoeda(totais.troco)}
+              </span>
+            </div>
+          )}
+          {faltaReceber ? (
+            <p className="rounded-md bg-destructive/10 px-2 py-1.5 text-center text-sm font-semibold text-destructive">
+              Falta receber {formatMoeda(totais.pendente)}
+              <span className="block text-[0.7rem] font-normal">
+                Adicione outro pagamento ou lance a diferença no Fiado.
+              </span>
+            </p>
+          ) : temFiado ? (
+            <p className="rounded-md bg-primary/10 px-2 py-1.5 text-center text-sm font-semibold text-primary">
+              Fiado: {formatMoeda(totais.fiado)} a receber
+              {cliente ? ` de ${cliente.nome}` : ""}
+            </p>
+          ) : totais.recebido > 0 ? (
+            <p className="rounded-md bg-success/15 px-2 py-1.5 text-center text-sm font-semibold text-success">
+              Pagamento completo
+            </p>
+          ) : null}
+        </div>
+      )}
 
       {/* Ação principal da etapa — conferência antes do envio */}
       <div className="shrink-0 space-y-2 border-t border-border p-4">
@@ -467,9 +466,9 @@ export function PagamentoPanel({
             troco — ajuste os valores.
           </p>
         )}
-        {problema && (
+        {problemaExibido && (
           <p role="alert" className="text-center text-[0.7rem] leading-snug text-destructive">
-            {problema}
+            {problemaExibido}
           </p>
         )}
         <Button
